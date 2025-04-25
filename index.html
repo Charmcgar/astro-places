@@ -3,92 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Astro Places</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
-            padding: 20px;
+            min-height: 100vh;
+            margin: 0;
             background-color: #f4f4f4;
         }
 
-        h1 {
-            color: #333;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        .form-group input, .form-group button {
+        .canvas-container {
+            display: grid;
+            grid-template-columns: repeat(50, 10px);
+            grid-template-rows: repeat(50, 10px);
+            gap: 1px;
+            background-color: #ccc;
             padding: 10px;
-            font-size: 16px;
+            border: 2px solid #333;
         }
 
-        .ban-list {
-            margin-top: 20px;
-        }
-
-        .ban-list h3 {
-            margin-bottom: 10px;
-        }
-
-        .ban-list ul {
-            list-style: none;
-            padding: 0;
-        }
-
-        .ban-list li {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            margin-bottom: 5px;
-        }
-
-        .ban-list button {
-            padding: 5px;
-            font-size: 14px;
+        .pixel {
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            border: 1px solid transparent;
             cursor: pointer;
+        }
+
+        .color-palette {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .color {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+
+        .color.selected {
+            outline: 2px solid black;
         }
     </style>
 </head>
 <body>
-    <h1>Admin Dashboard</h1>
-
-    <div class="form-group">
-        <label for="canvas-size">Set Canvas Size (e.g., 50x50):</label>
-        <input type="text" id="canvas-size" placeholder="Width x Height">
-        <button id="set-size">Set Size</button>
-    </div>
-
-    <div class="form-group">
-        <button id="clear-all">Clear All Pixels</button>
-    </div>
-
-    <div class="form-group">
-        <label for="ban-user">Ban User by ID:</label>
-        <input type="text" id="ban-user" placeholder="Enter User ID">
-        <button id="ban-button">Ban User</button>
-    </div>
-
-    <div class="ban-list">
-        <h3>Banned Users:</h3>
-        <ul id="banned-users-list"></ul>
+    <div>
+        <div class="canvas-container" id="canvas"></div>
+        <div class="color-palette" id="palette">
+            <div class="color" style="background-color: red;" data-color="red"></div>
+            <div class="color" style="background-color: blue;" data-color="blue"></div>
+            <div class="color" style="background-color: green;" data-color="green"></div>
+            <div class="color" style="background-color: yellow;" data-color="yellow"></div>
+            <div class="color" style="background-color: black;" data-color="black"></div>
+            <div class="color" style="background-color: white; border-color: #ccc;" data-color="white"></div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, set, remove, onValue } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
@@ -103,62 +82,82 @@
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        const canvasSizeInput = document.getElementById('canvas-size');
-        const setSizeButton = document.getElementById('set-size');
-        const clearAllButton = document.getElementById('clear-all');
-        const banUserInput = document.getElementById('ban-user');
-        const banButton = document.getElementById('ban-button');
-        const bannedUsersList = document.getElementById('banned-users-list');
+        const canvas = document.getElementById('canvas');
+        const palette = document.getElementById('palette');
+        let selectedColor = 'red';
+        let userId = Math.random().toString(36).substring(2, 9); // Random user ID for this session
 
-        // Set canvas size
-        setSizeButton.addEventListener('click', () => {
-            const size = canvasSizeInput.value.split('x').map(Number);
-            if (size.length === 2 && size[0] > 0 && size[1] > 0) {
-                set(ref(database, 'canvas/size'), { width: size[0], height: size[1] });
-                alert(`Canvas size set to ${size[0]}x${size[1]}`);
-            } else {
-                alert('Invalid size format. Use Width x Height.');
+        // Function to check if the user is banned
+        function checkIfUserBanned() {
+            const bannedRef = ref(database, `banned/${userId}`);
+            get(bannedRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    alert("You are banned from editing the canvas.");
+                    disableCanvas();
+                }
+            });
+        }
+
+        // Disable the canvas if the user is banned
+        function disableCanvas() {
+            const pixels = document.querySelectorAll('.pixel');
+            pixels.forEach(pixel => pixel.style.pointerEvents = 'none');
+        }
+
+        // Listen for canvas size changes
+        const canvasSizeRef = ref(database, 'canvas/size');
+        onValue(canvasSizeRef, (snapshot) => {
+            const size = snapshot.val();
+            if (size) {
+                setCanvasSize(size.width, size.height);
             }
         });
 
-        // Clear all pixels
-        clearAllButton.addEventListener('click', () => {
-            set(ref(database, 'pixels'), null);
-            alert('All pixels cleared.');
-        });
+        // Set the canvas size based on the database
+        function setCanvasSize(width, height) {
+            canvas.innerHTML = '';  // Clear current pixels
+            canvas.style.gridTemplateColumns = `repeat(${width}, 10px)`;
+            canvas.style.gridTemplateRows = `repeat(${height}, 10px)`;
 
-        // Ban user
-        banButton.addEventListener('click', () => {
-            const userId = banUserInput.value.trim();
-            if (userId) {
-                set(ref(database, `banned/${userId}`), true);
-                banUserInput.value = '';
-                alert(`User ${userId} has been banned.`);
-            } else {
-                alert('Please enter a valid User ID.');
-            }
-        });
+            // Recreate the pixels
+            for (let i = 0; i < width * height; i++) {
+                const pixel = document.createElement('div');
+                pixel.classList.add('pixel');
+                pixel.dataset.index = i;
 
-        // Load and display banned users
-        const bannedUsersRef = ref(database, 'banned');
-        onValue(bannedUsersRef, (snapshot) => {
-            bannedUsersList.innerHTML = '';
-            const data = snapshot.val();
-            if (data) {
-                Object.keys(data).forEach((userId) => {
-                    const listItem = document.createElement('li');
-                    listItem.textContent = userId;
-                    const unbanButton = document.createElement('button');
-                    unbanButton.textContent = 'Unban';
-                    unbanButton.addEventListener('click', () => {
-                        remove(ref(database, `banned/${userId}`));
-                        alert(`User ${userId} has been unbanned.`);
-                    });
-                    listItem.appendChild(unbanButton);
-                    bannedUsersList.appendChild(listItem);
+                const pixelRef = ref(database, `pixels/${i}`);
+                onValue(pixelRef, (snapshot) => {
+                    const color = snapshot.val();
+                    pixel.style.backgroundColor = color || 'white';
                 });
+
+                pixel.addEventListener('click', () => {
+                    if (userId) {
+                        set(pixelRef, selectedColor);
+                    }
+                });
+
+                canvas.appendChild(pixel);
+            }
+        }
+
+        // Set initial canvas size if not defined
+        setCanvasSize(50, 50);  // Default size, will be updated by Firebase
+
+        // Add event listeners to the palette
+        palette.addEventListener('click', (event) => {
+            if (event.target.classList.contains('color')) {
+                document.querySelectorAll('.color').forEach(color => color.classList.remove('selected'));
+                event.target.classList.add('selected');
+                selectedColor = event.target.getAttribute('data-color');
             }
         });
+
+        // Check if the user is banned when the page loads
+        checkIfUserBanned();
+
+        // Set initial selected color
+        document.querySelector('.color[data-color="red"]').classList.add('selected');
     </script>
 </body>
 </html>
