@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astro Places</title>
+    <title>r/Places Canvas</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -17,8 +17,6 @@
 
         .canvas-container {
             display: grid;
-            grid-template-columns: repeat(50, 10px);
-            grid-template-rows: repeat(50, 10px);
             gap: 1px;
             background-color: #ccc;
             padding: 10px;
@@ -116,10 +114,12 @@
         // Set the canvas size based on the database
         function setCanvasSize(width, height) {
             canvas.innerHTML = '';  // Clear current pixels
+
+            // Dynamically adjust grid-template-columns and rows based on the size
             canvas.style.gridTemplateColumns = `repeat(${width}, 10px)`;
             canvas.style.gridTemplateRows = `repeat(${height}, 10px)`;
 
-            // Recreate the pixels
+            // Recreate the pixels for the new canvas size
             for (let i = 0; i < width * height; i++) {
                 const pixel = document.createElement('div');
                 pixel.classList.add('pixel');
@@ -161,3 +161,4 @@
     </script>
 </body>
 </html>
+
