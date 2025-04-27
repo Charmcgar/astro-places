@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astro Place</title>
+    <title>r/place Clone with Admin</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -292,6 +292,84 @@
             background-color: #ff4500;
             color: white;
         }
+        .admin-panel {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 15px;
+            background-color: #272729;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: none;
+        }
+        .admin-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #e8e6e3;
+        }
+        .admin-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .admin-button {
+            background-color: #d80000;
+        }
+        .admin-button:hover {
+            background-color: #ff0000;
+        }
+        .admin-input {
+            background-color: #343536;
+            border: 1px solid #515252;
+            color: #d7dadc;
+            padding: 8px 12px;
+            border-radius: 4px;
+            flex-grow: 1;
+        }
+        .banned-users {
+            margin-top: 15px;
+        }
+        .banned-user {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background-color: #3a3a3c;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .unban-button {
+            background-color: #343536;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        .admin-login {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 15px;
+            background-color: #272729;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .admin-login-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #e8e6e3;
+        }
+        .admin-login-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .admin-login-input {
+            background-color: #343536;
+            border: 1px solid #515252;
+            color: #d7dadc;
+            padding: 8px 12px;
+            border-radius: 4px;
+            flex-grow: 1;
+        }
         @media (max-width: 768px) {
             .color-picker {
                 max-width: 320px;
@@ -326,8 +404,8 @@
 <body>
     <div class="header">
         <div class="logo">
-            <div class="logo-icon">Astro</div>
-            <div class="logo-text">Place</div>
+            <div class="logo-icon">r/</div>
+            <div class="logo-text">place</div>
         </div>
     </div>
     
@@ -370,6 +448,31 @@
             </div>
         </div>
         
+        <div class="admin-login" id="admin-login">
+            <div class="admin-login-title">Admin Login</div>
+            <div class="admin-login-controls">
+                <input type="password" id="admin-key" class="admin-login-input" placeholder="Enter admin key">
+                <button id="admin-login-button">Login</button>
+            </div>
+        </div>
+        
+        <div class="admin-panel" id="admin-panel">
+            <div class="admin-title">Admin Controls</div>
+            <div class="admin-controls">
+                <button id="clear-canvas" class="admin-button">Clear Canvas</button>
+                <button id="ban-user" class="admin-button">Ban User</button>
+                <input type="text" id="user-to-ban" class="admin-input" placeholder="Enter user ID to ban">
+            </div>
+            <div class="admin-controls">
+                <button id="import-canvas" class="admin-button">Import Canvas</button>
+                <input type="file" id="canvas-file" class="admin-input" accept=".json,.png">
+            </div>
+            <div class="banned-users">
+                <div class="admin-title">Banned Users</div>
+                <div id="banned-users-list"></div>
+            </div>
+        </div>
+        
         <div class="history-viewer">
             <div class="history-title">Recent Activity</div>
             <div class="history-container" id="history-container"></div>
@@ -402,7 +505,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get, push, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, get, push, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
@@ -422,7 +525,7 @@
         // Canvas setup
         const canvas = document.getElementById('place-canvas');
         const ctx = canvas.getContext('2d');
-        const canvasSize = 200; // 100x100 pixel grid
+        const canvasSize = 100; // 100x100 pixel grid
         const pixelSize = 5; // Size of each pixel for rendering
         
         // Current view properties
@@ -436,11 +539,15 @@
         // User interaction
         let selectedColor = '#000000';
         let lastPlacedTime = 0;
-        const cooldownTime = 1000; // 3 seconds cooldown (shortened for demo purposes)
+        const cooldownTime = 3000; // 3 seconds cooldown (shortened for demo purposes)
         const userId = generateUserId();
         let userPresenceRef = null;
         let myPixelCount = 0;
         let totalPixelCount = 0;
+        let isAdmin = false;
+        
+        // Admin key
+        const ADMIN_KEY = "1608";
         
         // Hover preview
         const hoverPixel = document.getElementById('hover-pixel');
@@ -538,9 +645,24 @@
             });
         }
 
+        // Check if user is banned
+        function checkIfBanned() {
+            const bannedRef = ref(db, `bannedUsers/${userId}`);
+            return get(bannedRef).then((snapshot) => {
+                return snapshot.exists();
+            });
+        }
+
         // Handle user placing a pixel
-        function placePixel(x, y) {
+        async function placePixel(x, y) {
             const now = Date.now();
+            
+            // Check if user is banned
+            const isBanned = await checkIfBanned();
+            if (isBanned) {
+                showNotification('You are banned from placing pixels');
+                return;
+            }
             
             // Check cooldown
             if (now - lastPlacedTime < cooldownTime) {
@@ -691,7 +813,8 @@
             // Set user as online when they connect
             set(userPresenceRef, {
                 online: true,
-                lastActive: Date.now()
+                lastActive: Date.now(),
+                isAdmin: isAdmin
             });
             
             // Remove user when they disconnect
@@ -711,7 +834,8 @@
             setInterval(() => {
                 set(userPresenceRef, {
                     online: true,
-                    lastActive: Date.now()
+                    lastActive: Date.now(),
+                    isAdmin: isAdmin
                 });
             }, 30000); // Update every 30 seconds
         }
@@ -785,7 +909,7 @@
                         currentCanvasState[key] = entry.color;
                         
                         // Add a frame every 10 pixels or at the end
-                        if (frameCount % 5 === 0 || frameCount === entries.length - 1) {
+                        if (frameCount % 10 === 0 || frameCount === entries.length - 1) {
                             timelapseFrames.push({...currentCanvasState});
                         }
                         frameCount++;
@@ -835,6 +959,266 @@
                     clearTimeout(animationId);
                 }
             }
+        }
+
+        // Admin functions
+        function setupAdminControls() {
+            // Clear canvas
+            document.getElementById('clear-canvas').addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear the entire canvas?')) {
+                    const pixelsRef = ref(db, 'pixels');
+                    remove(pixelsRef)
+                        .then(() => showNotification('Canvas cleared successfully'))
+                        .catch(error => showNotification('Error clearing canvas: ' + error.message));
+                }
+            });
+            
+            // Ban user
+            document.getElementById('ban-user').addEventListener('click', () => {
+                const userIdToBan = document.getElementById('user-to-ban').value.trim();
+                if (!userIdToBan) {
+                    showNotification('Please enter a user ID to ban');
+                    return;
+                }
+                
+                const bannedRef = ref(db, `bannedUsers/${userIdToBan}`);
+                set(bannedRef, {
+                    timestamp: Date.now(),
+                    bannedBy: userId
+                })
+                .then(() => {
+                    showNotification(`User ${userIdToBan} banned successfully`);
+                    document.getElementById('user-to-ban').value = '';
+                    updateBannedUsersList();
+                })
+                .catch(error => {
+                    showNotification('Error banning user: ' + error.message);
+                });
+            });
+            
+            // Unban user
+            document.getElementById('banned-users-list').addEventListener('click', (e) => {
+                if (e.target.classList.contains('unban-button')) {
+                    const userIdToUnban = e.target.dataset.userId;
+                    if (confirm(`Are you sure you want to unban user ${userIdToUnban}?`)) {
+                        const bannedRef = ref(db, `bannedUsers/${userIdToUnban}`);
+                        remove(bannedRef)
+                            .then(() => {
+                                showNotification(`User ${userIdToUnban} unbanned successfully`);
+                                updateBannedUsersList();
+                            })
+                            .catch(error => {
+                                showNotification('Error unbanning user: ' + error.message);
+                            });
+                    }
+                }
+            });
+            
+            // Import canvas from file
+            document.getElementById('import-canvas').addEventListener('click', () => {
+                const fileInput = document.getElementById('canvas-file');
+                if (fileInput.files.length === 0) {
+                    showNotification('Please select a file to import');
+                    return;
+                }
+                
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                
+                if (file.type === 'application/json') {
+                    // JSON import
+                    reader.onload = (e) => {
+                        try {
+                            const canvasData = JSON.parse(e.target.result);
+                            if (typeof canvasData !== 'object') {
+                                throw new Error('Invalid JSON format');
+                            }
+                            
+                            // Clear existing canvas
+                            const pixelsRef = ref(db, 'pixels');
+                            remove(pixelsRef)
+                                .then(() => {
+                                    // Import new pixels
+                                    const updates = {};
+                                    for (const key in canvasData) {
+                                        updates[`pixels/${key}`] = {
+                                            color: canvasData[key],
+                                            userId: 'system',
+                                            timestamp: Date.now()
+                                        };
+                                    }
+                                    
+                                    update(ref(db), updates)
+                                        .then(() => showNotification('Canvas imported successfully'))
+                                        .catch(error => showNotification('Error importing canvas: ' + error.message));
+                                })
+                                .catch(error => showNotification('Error clearing canvas: ' + error.message));
+                        } catch (error) {
+                            showNotification('Error parsing JSON: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                } else if (file.type.startsWith('image/')) {
+                    // Image import
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            // Create temporary canvas to process image
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = canvasSize;
+                            tempCanvas.height = canvasSize;
+                            const tempCtx = tempCanvas.getContext('2d');
+                            
+                            // Draw image to temp canvas (scaled to fit)
+                            tempCtx.drawImage(img, 0, 0, canvasSize, canvasSize);
+                            
+                            // Get pixel data
+                            const imageData = tempCtx.getImageData(0, 0, canvasSize, canvasSize);
+                            const data = imageData.data;
+                            
+                            // Convert to our color palette
+                            const updates = {};
+                            for (let y = 0; y < canvasSize; y++) {
+                                for (let x = 0; x < canvasSize; x++) {
+                                    const index = (y * canvasSize + x) * 4;
+                                    const r = data[index];
+                                    const g = data[index + 1];
+                                    const b = data[index + 2];
+                                    const a = data[index + 3];
+                                    
+                                    if (a > 0) { // Only process non-transparent pixels
+                                        const hexColor = rgbToHex(r, g, b);
+                                        const closestColor = findClosestColor(hexColor);
+                                        updates[`pixels/${x},${y}`] = {
+                                            color: closestColor,
+                                            userId: 'system',
+                                            timestamp: Date.now()
+                                        };
+                                    }
+                                }
+                            }
+                            
+                            // Clear existing canvas and import new pixels
+                            const pixelsRef = ref(db, 'pixels');
+                            remove(pixelsRef)
+                                .then(() => {
+                                    update(ref(db), updates)
+                                        .then(() => showNotification('Image imported successfully'))
+                                        .catch(error => showNotification('Error importing image: ' + error.message));
+                                })
+                                .catch(error => showNotification('Error clearing canvas: ' + error.message));
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    showNotification('Unsupported file type');
+                }
+            });
+            
+            // Update banned users list
+            function updateBannedUsersList() {
+                const bannedUsersList = document.getElementById('banned-users-list');
+                bannedUsersList.innerHTML = '';
+                
+                const bannedRef = ref(db, 'bannedUsers');
+                get(bannedRef).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const bannedUsers = snapshot.val();
+                        for (const userId in bannedUsers) {
+                            const bannedUser = document.createElement('div');
+                            bannedUser.className = 'banned-user';
+                            bannedUser.innerHTML = `
+                                <span>${userId}</span>
+                                <button class="unban-button" data-user-id="${userId}">Unban</button>
+                            `;
+                            bannedUsersList.appendChild(bannedUser);
+                        }
+                    } else {
+                        bannedUsersList.innerHTML = '<div>No banned users</div>';
+                    }
+                });
+            }
+            
+            // Helper function to convert RGB to hex
+            function rgbToHex(r, g, b) {
+                return '#' + [r, g, b].map(x => {
+                    const hex = x.toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                }).join('');
+            }
+            
+            // Helper function to find closest color in palette
+            function findClosestColor(hexColor) {
+                if (!hexColor.startsWith('#')) return '#FFFFFF';
+                
+                // Convert hex to RGB
+                const r = parseInt(hexColor.substr(1, 2), 16);
+                const g = parseInt(hexColor.substr(3, 2), 16);
+                const b = parseInt(hexColor.substr(5, 2), 16);
+                
+                let closestColor = '#FFFFFF';
+                let minDistance = Infinity;
+                
+                for (const color of colors) {
+                    const cr = parseInt(color.substr(1, 2), 16);
+                    const cg = parseInt(color.substr(3, 2), 16);
+                    const cb = parseInt(color.substr(5, 2), 16);
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(r - cr, 2) + 
+                        Math.pow(g - cg, 2) + 
+                        Math.pow(b - cb, 2)
+                    );
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestColor = color;
+                    }
+                }
+                
+                return closestColor;
+            }
+            
+            // Initialize banned users list
+            updateBannedUsersList();
+        }
+
+        // Admin login system
+        function setupAdminLogin() {
+            const adminLoginButton = document.getElementById('admin-login-button');
+            const adminKeyInput = document.getElementById('admin-key');
+            const adminPanel = document.getElementById('admin-panel');
+            
+            adminLoginButton.addEventListener('click', () => {
+                if (adminKeyInput.value === ADMIN_KEY) {
+                    isAdmin = true;
+                    document.getElementById('admin-login').style.display = 'none';
+                    adminPanel.style.display = 'block';
+                    document.querySelector('.logo-text').textContent = 'place (Admin Mode)';
+                    setupAdminControls();
+                    showNotification('Admin access granted');
+                    
+                    // Update user presence with admin status
+                    if (userPresenceRef) {
+                        set(userPresenceRef, {
+                            online: true,
+                            lastActive: Date.now(),
+                            isAdmin: true
+                        });
+                    }
+                } else {
+                    showNotification('Invalid admin key');
+                }
+                adminKeyInput.value = '';
+            });
+            
+            // Also allow Enter key to submit
+            adminKeyInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    adminLoginButton.click();
+                }
+            });
         }
 
         // Canvas interaction events
@@ -922,6 +1306,11 @@
             setupHistoryDisplay();
             setupUserPresence();
             setupTimelapseView();
+            setupAdminLogin();
+            
+            // Hide admin panel by default
+            document.getElementById('admin-panel').style.display = 'none';
+            document.querySelector('.logo-text').textContent = 'place';
         }
 
         // Start the app
