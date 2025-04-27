@@ -14,7 +14,6 @@
             margin: 0;
             background-color: #f4f4f4;
         }
-
         .canvas-container {
             display: grid;
             gap: 1px;
@@ -22,7 +21,6 @@
             padding: 10px;
             border: 2px solid #333;
         }
-
         .pixel {
             width: 10px;
             height: 10px;
@@ -30,21 +28,18 @@
             border: 1px solid transparent;
             cursor: pointer;
         }
-
         .color-palette {
             margin-top: 20px;
             display: flex;
             justify-content: center;
             gap: 10px;
         }
-
         .color {
             width: 20px;
             height: 20px;
             border: 2px solid #333;
             cursor: pointer;
         }
-
         .color.selected {
             outline: 2px solid black;
         }
@@ -65,7 +60,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
@@ -126,45 +121,12 @@
                 });
 
                 pixel.addEventListener('click', () => {
-                    if (userId) {
-                        // AI Moderation: detect forbidden patterns/colors
-                        detectForbidden(selectedColor, i);
-
-                        set(pixelRef, selectedColor);
-                        logPixelEdit(userId, i, selectedColor);
-                    }
+                    set(pixelRef, selectedColor);
                 });
 
                 canvas.appendChild(pixel);
             }
         }
-
-        function logPixelEdit(userId, pixelIndex, color) {
-            const logRef = ref(database, `logs/${Date.now()}`);
-            set(logRef, {
-                userId,
-                pixelIndex,
-                color,
-                time: Date.now()
-            });
-        }
-
-        function detectForbidden(color, pixelIndex) {
-            const forbiddenColorsRef = ref(database, 'forbiddenColors');
-            get(forbiddenColorsRef).then((snapshot) => {
-                if (snapshot.exists()) {
-                    const forbidden = snapshot.val();
-                    if (forbidden.includes(color)) {
-                        // Auto-ban
-                        alert('You used a forbidden color. You are banned.');
-                        set(ref(database, `banned/${userId}`), true);
-                        disableCanvas();
-                    }
-                }
-            });
-        }
-
-        setCanvasSize(50, 50);
 
         palette.addEventListener('click', (event) => {
             if (event.target.classList.contains('color')) {
@@ -174,6 +136,7 @@
             }
         });
 
+        setCanvasSize(50, 50);
         checkIfUserBanned();
         document.querySelector('.color[data-color="red"]').classList.add('selected');
     </script>
