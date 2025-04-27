@@ -65,13 +65,14 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
             authDomain: "astro-places-1aec2.firebaseapp.com",
+            databaseURL: "https://astro-places-1aec2-default-rtdb.firebaseio.com",
             projectId: "astro-places-1aec2",
-            storageBucket: "astro-places-1aec2.firebasestorage.app",
+            storageBucket: "astro-places-1aec2.appspot.com",
             messagingSenderId: "502500788903",
             appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
             measurementId: "G-6J7SM1KM05"
@@ -83,9 +84,8 @@
         const canvas = document.getElementById('canvas');
         const palette = document.getElementById('palette');
         let selectedColor = 'red';
-        let userId = Math.random().toString(36).substring(2, 9); // Random user ID for this session
+        let userId = Math.random().toString(36).substring(2, 9);
 
-        // Function to check if the user is banned
         function checkIfUserBanned() {
             const bannedRef = ref(database, `banned/${userId}`);
             get(bannedRef).then((snapshot) => {
@@ -96,13 +96,11 @@
             });
         }
 
-        // Disable the canvas if the user is banned
         function disableCanvas() {
             const pixels = document.querySelectorAll('.pixel');
             pixels.forEach(pixel => pixel.style.pointerEvents = 'none');
         }
 
-        // Listen for canvas size changes
         const canvasSizeRef = ref(database, 'canvas/size');
         onValue(canvasSizeRef, (snapshot) => {
             const size = snapshot.val();
@@ -111,15 +109,11 @@
             }
         });
 
-        // Set the canvas size based on the database
         function setCanvasSize(width, height) {
-            canvas.innerHTML = '';  // Clear current pixels
-
-            // Dynamically adjust grid-template-columns and rows based on the size
+            canvas.innerHTML = '';
             canvas.style.gridTemplateColumns = `repeat(${width}, 10px)`;
             canvas.style.gridTemplateRows = `repeat(${height}, 10px)`;
 
-            // Recreate the pixels for the new canvas size
             for (let i = 0; i < width * height; i++) {
                 const pixel = document.createElement('div');
                 pixel.classList.add('pixel');
@@ -133,7 +127,11 @@
 
                 pixel.addEventListener('click', () => {
                     if (userId) {
+                        // AI Moderation: detect forbidden patterns/colors
+                        detectForbidden(selectedColor, i);
+
                         set(pixelRef, selectedColor);
+                        logPixelEdit(userId, i, selectedColor);
                     }
                 });
 
@@ -141,10 +139,33 @@
             }
         }
 
-        // Set initial canvas size if not defined
-        setCanvasSize(50, 50);  // Default size, will be updated by Firebase
+        function logPixelEdit(userId, pixelIndex, color) {
+            const logRef = ref(database, `logs/${Date.now()}`);
+            set(logRef, {
+                userId,
+                pixelIndex,
+                color,
+                time: Date.now()
+            });
+        }
 
-        // Add event listeners to the palette
+        function detectForbidden(color, pixelIndex) {
+            const forbiddenColorsRef = ref(database, 'forbiddenColors');
+            get(forbiddenColorsRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    const forbidden = snapshot.val();
+                    if (forbidden.includes(color)) {
+                        // Auto-ban
+                        alert('You used a forbidden color. You are banned.');
+                        set(ref(database, `banned/${userId}`), true);
+                        disableCanvas();
+                    }
+                }
+            });
+        }
+
+        setCanvasSize(50, 50);
+
         palette.addEventListener('click', (event) => {
             if (event.target.classList.contains('color')) {
                 document.querySelectorAll('.color').forEach(color => color.classList.remove('selected'));
@@ -153,12 +174,8 @@
             }
         });
 
-        // Check if the user is banned when the page loads
         checkIfUserBanned();
-
-        // Set initial selected color
         document.querySelector('.color[data-color="red"]').classList.add('selected');
     </script>
 </body>
 </html>
-
