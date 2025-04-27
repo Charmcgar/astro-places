@@ -1,282 +1,931 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>r/Places Canvas</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 0;
-      padding: 0;
-    }
-    .canvas-container {
-      margin-top: 20px;
-      display: grid;
-      gap: 1px;
-      background-color: #ccc;
-      padding: 10px;
-      border: 2px solid #333;
-      position: relative;
-    }
-    .pixel {
-      width: 10px;
-      height: 10px;
-      background-color: white;
-      border: 1px solid transparent;
-      cursor: pointer;
-      transition: box-shadow 0.2s;
-      position: relative;
-    }
-    .pixel:hover {
-      box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    }
-    .color-palette {
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
-    }
-    .color {
-      width: 20px;
-      height: 20px;
-      border: 2px solid #333;
-      cursor: pointer;
-    }
-    .color.selected {
-      outline: 2px solid black;
-    }
-    #creatorBox {
-      position: fixed;
-      bottom: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 5px 10px;
-      border-radius: 8px;
-      font-size: 14px;
-      display: none;
-      z-index: 10;
-    }
-    /* Mod Dashboard */
-    #modDashboard {
-      display: none;
-      background-color: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 20px;
-      border-radius: 8px;
-      margin-top: 20px;
-      width: 80%;
-      max-width: 500px;
-      position: fixed;
-      top: 20%;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
-    }
-    #modDashboard input {
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-    #modDashboard button {
-      padding: 10px;
-      background-color: red;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    #modDashboard button:hover {
-      background-color: darkred;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>r/place Clone</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #1a1a1b;
+            color: #d7dadc;
+        }
+        .header {
+            width: 100%;
+            background-color: #1a1a1b;
+            color: white;
+            text-align: center;
+            padding: 1rem 0;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-icon {
+            color: #ff4500;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .logo-text {
+            font-size: 22px;
+            font-weight: bold;
+            color: #ff4500;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+        }
+        #canvas-container {
+            position: relative;
+            margin-bottom: 1rem;
+            border: 1px solid #343536;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            overflow: hidden;
+            background-image: linear-gradient(45deg, #2c2c2c 25%, transparent 25%), 
+                              linear-gradient(-45deg, #2c2c2c 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #2c2c2c 75%), 
+                              linear-gradient(-45deg, transparent 75%, #2c2c2c 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        #place-canvas {
+            background-color: transparent;
+            image-rendering: pixelated;
+            cursor: crosshair;
+        }
+        .hover-pixel {
+            position: absolute;
+            pointer-events: none;
+            border: 1px solid white;
+            box-shadow: 0 0 0 1px black;
+            display: none;
+        }
+        .color-picker {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 1rem 0;
+            max-width: 400px;
+            background-color: #272729;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .color-option {
+            width: 30px;
+            height: 30px;
+            margin: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid #272729;
+            transition: transform 0.1s;
+        }
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        .color-option.selected {
+            border: 2px solid white;
+            transform: scale(1.1);
+            box-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 10px;
+            width: 100%;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 5px 0;
+            width: 100%;
+            justify-content: center;
+        }
+        #zoom-controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            background-color: #ff4500;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #ff5722;
+        }
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #cooldown {
+            font-weight: bold;
+            color: #ff4500;
+            margin-top: 0.5rem;
+            padding: 8px 12px;
+            border-radius: 20px;
+            background-color: #272729;
+        }
+        .cooldown-active {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .timer-circle {
+            position: relative;
+            width: 24px;
+            height: 24px;
+        }
+        .timer-circle svg {
+            transform: rotate(-90deg);
+        }
+        .timer-circle circle {
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+        .timer-bg {
+            stroke: #444;
+        }
+        .timer-progress {
+            stroke: #ff4500;
+            transition: stroke-dashoffset 1s linear;
+        }
+        .stats-container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            margin-top: 1rem;
+            padding: 10px;
+            background-color: #272729;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0 10px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #818384;
+        }
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        #coordinates {
+            padding: 8px 12px;
+            font-family: monospace;
+            background-color: #272729;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .history-viewer {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 15px;
+            background-color: #272729;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .history-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #e8e6e3;
+        }
+        .history-container {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px;
+            background-color: #3a3a3c;
+            border-radius: 4px;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .history-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #1a1a1b;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .close-button {
+            background: none;
+            color: #d7dadc;
+            font-size: 24px;
+            border: none;
+            cursor: pointer;
+        }
+        .time-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .time-option {
+            background-color: #343536;
+            border: none;
+            color: #d7dadc;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .time-option.active {
+            background-color: #ff4500;
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .color-picker {
+                max-width: 320px;
+            }
+            .stats-container {
+                flex-wrap: wrap;
+            }
+            .stat-item {
+                width: 50%;
+                margin-bottom: 10px;
+            }
+        }
+        #notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #272729;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 100;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            0% { transform: translateY(100px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+    </style>
 </head>
 <body>
-
-  <div class="canvas-container" id="canvas"></div>
-
-  <div class="color-palette" id="palette">
-    <div class="color" style="background-color: red;" data-color="red"></div>
-    <div class="color" style="background-color: blue;" data-color="blue"></div>
-    <div class="color" style="background-color: green;" data-color="green"></div>
-    <div class="color" style="background-color: yellow;" data-color="yellow"></div>
-    <div class="color" style="background-color: black;" data-color="black"></div>
-    <div class="color" style="background-color: white; border-color: #ccc;" data-color="white"></div>
-  </div>
-
-  <div id="creatorBox">Placed by: loading...</div>
-
-  <!-- Mod Dashboard -->
-  <div id="modDashboard">
-    <h2>Mod Dashboard</h2>
-    <input type="text" id="modCode" placeholder="Enter code to access mod tools">
-    <button id="accessModButton">Access Mod Dashboard</button>
-    <div id="modTools" style="display: none;">
-      <h3>Ban a User</h3>
-      <input type="text" id="banUserId" placeholder="Enter User ID">
-      <button id="banButton">Ban User</button>
-      <h3>Clear Pixel</h3>
-      <input type="number" id="clearPixelId" placeholder="Enter Pixel ID">
-      <button id="clearPixelButton">Clear Pixel</button>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">r/</div>
+            <div class="logo-text">place</div>
+        </div>
     </div>
-  </div>
+    
+    <div class="container">
+        <div class="control-group">
+            <div id="cooldown">Ready to place a pixel!</div>
+            <div id="coordinates">Hover over canvas to see coordinates</div>
+        </div>
+        
+        <div id="canvas-container">
+            <canvas id="place-canvas" width="100" height="100"></canvas>
+            <div class="hover-pixel" id="hover-pixel"></div>
+        </div>
+        
+        <div class="color-picker" id="color-picker"></div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div id="zoom-controls">
+                    <button id="zoom-out">-</button>
+                    <button id="zoom-reset">Reset View</button>
+                    <button id="zoom-in">+</button>
+                </div>
+                <button id="timelapse-button">View Timelapse</button>
+            </div>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-value" id="user-count">0</div>
+                <div class="stat-label">Users Online</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="pixel-count">0</div>
+                <div class="stat-label">Pixels Placed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="your-pixels">0</div>
+                <div class="stat-label">Your Pixels</div>
+            </div>
+        </div>
+        
+        <div class="history-viewer">
+            <div class="history-title">Recent Activity</div>
+            <div class="history-container" id="history-container"></div>
+        </div>
+    </div>
+    
+    <div class="modal" id="timelapse-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Canvas Timelapse</h2>
+                <button class="close-button" id="close-timelapse">&times;</button>
+            </div>
+            <div>
+                <p>Watch how the canvas has evolved:</p>
+                <div class="time-options">
+                    <button class="time-option active" data-speed="1">1x</button>
+                    <button class="time-option" data-speed="2">2x</button>
+                    <button class="time-option" data-speed="5">5x</button>
+                </div>
+                <canvas id="timelapse-canvas" width="300" height="300" style="width: 100%; image-rendering: pixelated;"></canvas>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button id="play-timelapse">Play</button>
+                    <button id="pause-timelapse">Pause</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="notification"></div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getDatabase, ref, onValue, set, get, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, get, push, remove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-    // Firebase configuration and initialization
-    const firebaseConfig = {
-      apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
-      authDomain: "astro-places-1aec2.firebaseapp.com",
-      projectId: "astro-places-1aec2",
-      storageBucket: "astro-places-1aec2.appspot.com",
-      messagingSenderId: "502500788903",
-      appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
-      measurementId: "G-6J7SM1KM05"
-    };
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
+            authDomain: "astro-places-1aec2.firebaseapp.com",
+            projectId: "astro-places-1aec2",
+            storageBucket: "astro-places-1aec2.appspot.com",
+            messagingSenderId: "502500788903",
+            appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
+            measurementId: "G-6J7SM1KM05",
+            databaseURL: "https://astro-places-1aec2-default-rtdb.firebaseio.com"
+        };
 
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-    // Variables
-    const canvas = document.getElementById('canvas');
-    const palette = document.getElementById('palette');
-    const modCodeInput = document.getElementById('modCode');
-    const accessModButton = document.getElementById('accessModButton');
-    const modDashboard = document.getElementById('modDashboard');
-    const modTools = document.getElementById('modTools');
-    const banUserIdInput = document.getElementById('banUserId');
-    const banButton = document.getElementById('banButton');
-    const clearPixelIdInput = document.getElementById('clearPixelId');
-    const clearPixelButton = document.getElementById('clearPixelButton');
-    let selectedColor = 'red';
-    let userId = Math.random().toString(36).substring(2, 9); // Random user ID for this session
+        // Canvas setup
+        const canvas = document.getElementById('place-canvas');
+        const ctx = canvas.getContext('2d');
+        const canvasSize = 100; // 100x100 pixel grid
+        const pixelSize = 5; // Size of each pixel for rendering
+        
+        // Current view properties
+        let zoom = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
+        // User interaction
+        let selectedColor = '#000000';
+        let lastPlacedTime = 0;
+        const cooldownTime = 3000; // 3 seconds cooldown (shortened for demo purposes)
+        const userId = generateUserId();
+        let userPresenceRef = null;
+        let myPixelCount = 0;
+        let totalPixelCount = 0;
+        
+        // Hover preview
+        const hoverPixel = document.getElementById('hover-pixel');
+        
+        // Available colors with official r/place 2022 palette
+        const colors = [
+            '#FFFFFF', '#D4D7D9', '#898D90', '#515252', '#000000',
+            '#D80000', '#FF4500', '#FFA800', '#FFD635', '#00A368', 
+            '#7EED56', '#2450A4', '#3690EA', '#51E9F4', '#811E9F',
+            '#B44AC0', '#FF99AA', '#6A5CFF', '#E4ABFF', '#BE0039',
+            '#FF3881', '#493AC1', '#6D001A', '#6D482F', '#9C6926'
+        ];
 
-    // Check if the entered code is correct to access mod tools
-    accessModButton.addEventListener('click', () => {
-      if (modCodeInput.value === '608') {
-        modDashboard.style.display = 'block';  // Show the mod dashboard
-        modCodeInput.style.display = 'none';  // Hide the code input field
-        accessModButton.style.display = 'none';
-      } else {
-        alert('Invalid code');
-      }
-    });
+        // Create color picker
+        const colorPicker = document.getElementById('color-picker');
+        colors.forEach(color => {
+            const colorOption = document.createElement('div');
+            colorOption.className = 'color-option';
+            colorOption.style.backgroundColor = color;
+            colorOption.addEventListener('click', () => {
+                document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+                colorOption.classList.add('selected');
+                selectedColor = color;
+                
+                // Update hover preview
+                if (hoverPixel.style.display === 'block') {
+                    hoverPixel.style.backgroundColor = color;
+                }
+            });
+            colorPicker.appendChild(colorOption);
+        });
+        
+        // Select the first color by default
+        document.querySelector('.color-option').classList.add('selected');
 
-    // Ban a user
-    banButton.addEventListener('click', () => {
-      const bannedUserId = banUserIdInput.value;
-      if (bannedUserId) {
-        const bannedRef = ref(database, `banned/${bannedUserId}`);
-        set(bannedRef, true);
-        alert(`User ${bannedUserId} is banned.`);
-      }
-    });
-
-    // Clear a pixel
-    clearPixelButton.addEventListener('click', () => {
-      const pixelId = clearPixelIdInput.value;
-      if (pixelId) {
-        const pixelRef = ref(database, `pixels/${pixelId}`);
-        set(pixelRef, 'white');
-        alert(`Pixel ${pixelId} cleared.`);
-      }
-    });
-
-    // Function to check if the user is banned
-    function checkIfUserBanned() {
-      const bannedRef = ref(database, `banned/${userId}`);
-      get(bannedRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          alert("You are banned from editing the canvas.");
-          disableCanvas();
+        // Resize canvas element based on zoom level
+        function resizeCanvas() {
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+            canvas.style.width = (canvasSize * pixelSize * zoom) + 'px';
+            canvas.style.height = (canvasSize * pixelSize * zoom) + 'px';
+            document.getElementById('canvas-container').style.width = (canvasSize * pixelSize * zoom) + 'px';
+            document.getElementById('canvas-container').style.height = (canvasSize * pixelSize * zoom) + 'px';
+            
+            // Update hover pixel size
+            hoverPixel.style.width = (pixelSize * zoom) + 'px';
+            hoverPixel.style.height = (pixelSize * zoom) + 'px';
+            
+            // Redraw canvas
+            drawCanvas();
         }
-      });
-    }
 
-    // Disable the canvas if the user is banned
-    function disableCanvas() {
-      const pixels = document.querySelectorAll('.pixel');
-      pixels.forEach(pixel => pixel.style.pointerEvents = 'none');
-    }
+        // Initialize canvas size
+        resizeCanvas();
 
-    // Listen for canvas size changes
-    const canvasSizeRef = ref(database, 'canvas/size');
-    onValue(canvasSizeRef, (snapshot) => {
-      const size = snapshot.val();
-      if (size) {
-        setCanvasSize(size.width, size.height);
-      }
-    });
+        // Draw the canvas based on Firebase data
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid background
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Get pixels from Firebase
+            const pixelsRef = ref(db, 'pixels');
+            onValue(pixelsRef, (snapshot) => {
+                const pixelData = snapshot.val() || {};
+                
+                // Clear canvas with white
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw pixels
+                totalPixelCount = 0;
+                myPixelCount = 0; // Reset count before recounting
+                for (const key in pixelData) {
+                    const [x, y] = key.split(',');
+                    const pixelValue = pixelData[key];
+                    // Support both formats: string color or object with color property
+                    const pixelColor = typeof pixelValue === 'string' ? pixelValue : (pixelValue && pixelValue.color ? pixelValue.color : '#FFFFFF');
+                    
+                    ctx.fillStyle = pixelColor;
+                    ctx.fillRect(parseInt(x), parseInt(y), 1, 1);
+                    totalPixelCount++;
+                    
+                    // Count my pixels
+                    if (typeof pixelValue === 'object' && pixelValue && pixelValue.userId === userId) {
+                        myPixelCount++;
+                    }
+                }
+                
+                // Update pixel counts
+                document.getElementById('pixel-count').textContent = totalPixelCount;
+                document.getElementById('your-pixels').textContent = myPixelCount;
+            });
+        }
 
-    // Set the canvas size based on the database
-    function setCanvasSize(width, height) {
-      canvas.innerHTML = '';  // Clear current pixels
-
-      // Dynamically adjust grid-template-columns and rows based on the size
-      canvas.style.gridTemplateColumns = `repeat(${width}, 10px)`;
-      canvas.style.gridTemplateRows = `repeat(${height}, 10px)`;
-
-      // Recreate the pixels for the new canvas size
-      for (let i = 0; i < width * height; i++) {
-        const pixel = document.createElement('div');
-        pixel.classList.add('pixel');
-        pixel.dataset.index = i;
-
-        const pixelRef = ref(database, `pixels/${i}`);
-        onValue(pixelRef, (snapshot) => {
-          const color = snapshot.val();
-          pixel.style.backgroundColor = color || 'white';
-        });
-
-        pixel.addEventListener('click', () => {
-          if (userId) {
-            set(pixelRef, selectedColor);
-          }
-        });
-
-        // Hover event to display creator's user ID
-        pixel.addEventListener('mouseenter', () => {
-          const creatorIdRef = ref(database, `pixels/${i}/creator`);
-          get(creatorIdRef).then((snapshot) => {
-            const creatorId = snapshot.val();
-            const creatorBox = document.getElementById('creatorBox');
-            if (creatorId) {
-              creatorBox.textContent = `Placed by: ${creatorId}`;
-              creatorBox.style.display = 'block';
-            } else {
-              creatorBox.style.display = 'none';
+        // Handle user placing a pixel
+        function placePixel(x, y) {
+            const now = Date.now();
+            
+            // Check cooldown
+            if (now - lastPlacedTime < cooldownTime) {
+                showNotification('Please wait for the cooldown to expire');
+                return;
             }
-          });
+            
+            // Ensure coordinates are within bounds
+            if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
+                return;
+            }
+            
+            // Place the pixel in Firebase
+            const pixelRef = ref(db, `pixels/${x},${y}`);
+            set(pixelRef, {
+                color: selectedColor,
+                userId: userId,
+                timestamp: Date.now()
+            })
+            .then(() => {
+                lastPlacedTime = now;
+                updateCooldown();
+                
+                // Add to history
+                addToHistory(x, y, selectedColor);
+                
+                // Show notification
+                showNotification('Pixel placed successfully!');
+            })
+            .catch(error => {
+                console.error("Error placing pixel: ", error);
+                showNotification('Error placing pixel. Try again.');
+            });
+        }
+
+        // Update cooldown timer with circle animation
+        function updateCooldown() {
+            const cooldownElement = document.getElementById('cooldown');
+            const now = Date.now();
+            
+            if (now - lastPlacedTime < cooldownTime) {
+                const remainingTime = Math.ceil((cooldownTime - (now - lastPlacedTime)) / 1000);
+                const percentage = ((cooldownTime - (now - lastPlacedTime)) / cooldownTime) * 100;
+                
+                // Create timer circle if needed
+                if (!document.querySelector('.timer-circle')) {
+                    cooldownElement.innerHTML = '';
+                    cooldownElement.classList.add('cooldown-active');
+                    
+                    const timerCircle = document.createElement('div');
+                    timerCircle.className = 'timer-circle';
+                    timerCircle.innerHTML = `
+                        <svg width="24" height="24" viewBox="0 0 24 24">
+                            <circle class="timer-bg" cx="12" cy="12" r="10" />
+                            <circle class="timer-progress" cx="12" cy="12" r="10" stroke-dasharray="62.8" stroke-dashoffset="0" />
+                        </svg>
+                    `;
+                    
+                    const timerText = document.createElement('span');
+                    timerText.className = 'timer-text';
+                    timerText.textContent = `${remainingTime}s`;
+                    
+                    cooldownElement.appendChild(timerCircle);
+                    cooldownElement.appendChild(timerText);
+                }
+                
+                // Update timer progress
+                const progressCircle = document.querySelector('.timer-progress');
+                const timerText = document.querySelector('.timer-text');
+                
+                const circumference = 2 * Math.PI * 10; // r=10
+                const offset = circumference - (percentage / 100) * circumference;
+                progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+                progressCircle.style.strokeDashoffset = offset;
+                
+                timerText.textContent = `${remainingTime}s`;
+                
+                setTimeout(updateCooldown, 50);
+            } else {
+                cooldownElement.classList.remove('cooldown-active');
+                cooldownElement.innerHTML = 'Ready to place a pixel!';
+            }
+        }
+
+        // Show notification
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Add to history log
+        function addToHistory(x, y, color) {
+            // Add to Firebase history
+            const historyRef = ref(db, 'history');
+            push(historyRef, {
+                x: x,
+                y: y,
+                color: color,
+                userId: userId,
+                timestamp: Date.now()
+            });
+        }
+
+        // Display history
+        function setupHistoryDisplay() {
+            const historyRef = ref(db, 'history');
+            onValue(historyRef, (snapshot) => {
+                const historyContainer = document.getElementById('history-container');
+                historyContainer.innerHTML = '';
+                
+                const historyData = snapshot.val() || {};
+                // Convert to array and sort by timestamp (newest first)
+                const entries = Object.entries(historyData).map(([key, value]) => ({
+                    id: key,
+                    ...value
+                })).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
+                
+                entries.forEach(entry => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    const colorSwatch = document.createElement('span');
+                    colorSwatch.className = 'history-color';
+                    colorSwatch.style.backgroundColor = entry.color;
+                    
+                    historyItem.appendChild(colorSwatch);
+                    historyItem.appendChild(document.createTextNode(`(${entry.x}, ${entry.y})`));
+                    
+                    historyContainer.appendChild(historyItem);
+                });
+            });
+        }
+
+        // Generate a random user ID
+        function generateUserId() {
+            return 'user_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Handle user presence
+        function setupUserPresence() {
+            userPresenceRef = ref(db, `users/${userId}`);
+            
+            // Set user as online when they connect
+            set(userPresenceRef, {
+                online: true,
+                lastActive: Date.now()
+            });
+            
+            // Remove user when they disconnect
+            window.addEventListener('beforeunload', () => {
+                remove(userPresenceRef);
+            });
+            
+            // Update user count
+            const usersRef = ref(db, 'users');
+            onValue(usersRef, (snapshot) => {
+                const users = snapshot.val() || {};
+                const userCount = Object.keys(users).length;
+                document.getElementById('user-count').textContent = userCount;
+            });
+            
+            // Keep the connection alive with periodic updates
+            setInterval(() => {
+                set(userPresenceRef, {
+                    online: true,
+                    lastActive: Date.now()
+                });
+            }, 30000); // Update every 30 seconds
+        }
+
+        // Handle timelapse view
+        function setupTimelapseView() {
+            const timelapseButton = document.getElementById('timelapse-button');
+            const timelapseModal = document.getElementById('timelapse-modal');
+            const closeTimelapseButton = document.getElementById('close-timelapse');
+            const timelapseCanvas = document.getElementById('timelapse-canvas');
+            const timelapseCtx = timelapseCanvas.getContext('2d');
+            const playButton = document.getElementById('play-timelapse');
+            const pauseButton = document.getElementById('pause-timelapse');
+            
+            let isPlaying = false;
+            let timelapseSpeed = 1;
+            let timelapseFrames = [];
+            let currentFrame = 0;
+            let animationId = null;
+            
+            timelapseButton.addEventListener('click', () => {
+                timelapseModal.style.display = 'flex';
+                prepareTimelapseData();
+            });
+            
+            closeTimelapseButton.addEventListener('click', () => {
+                timelapseModal.style.display = 'none';
+                stopTimelapse();
+            });
+            
+            playButton.addEventListener('click', () => {
+                if (!isPlaying) {
+                    playTimelapse();
+                }
+            });
+            
+            pauseButton.addEventListener('click', () => {
+                stopTimelapse();
+            });
+            
+            // Speed options
+            document.querySelectorAll('.time-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    document.querySelectorAll('.time-option').forEach(o => o.classList.remove('active'));
+                    option.classList.add('active');
+                    timelapseSpeed = parseInt(option.dataset.speed);
+                });
+            });
+            
+            function prepareTimelapseData() {
+                // Get history data
+                const historyRef = ref(db, 'history');
+                get(historyRef).then((snapshot) => {
+                    if (!snapshot.exists()) return;
+                    
+                    // Reset timelapse data
+                    timelapseFrames = [];
+                    const currentCanvasState = {};
+                    
+                    // Process history data
+                    const historyData = snapshot.val();
+                    const entries = Object.entries(historyData).map(([key, value]) => ({
+                        id: key,
+                        ...value
+                    })).sort((a, b) => a.timestamp - b.timestamp);
+                    
+                    // Create frames at regular intervals
+                    let frameCount = 0;
+                    for (const entry of entries) {
+                        const key = `${entry.x},${entry.y}`;
+                        currentCanvasState[key] = entry.color;
+                        
+                        // Add a frame every 10 pixels or at the end
+                        if (frameCount % 10 === 0 || frameCount === entries.length - 1) {
+                            timelapseFrames.push({...currentCanvasState});
+                        }
+                        frameCount++;
+                    }
+                    
+                    // If we have frames, show the first one
+                    if (timelapseFrames.length > 0) {
+                        currentFrame = 0;
+                        renderTimelapseFrame(timelapseFrames[0]);
+                    }
+                });
+            }
+            
+            function renderTimelapseFrame(frameData) {
+                // Clear canvas
+                timelapseCtx.fillStyle = '#FFFFFF';
+                timelapseCtx.fillRect(0, 0, timelapseCanvas.width, timelapseCanvas.height);
+                
+                // Draw pixels
+                for (const key in frameData) {
+                    const [x, y] = key.split(',');
+                    timelapseCtx.fillStyle = frameData[key];
+                    timelapseCtx.fillRect(parseInt(x), parseInt(y), 1, 1);
+                }
+            }
+            
+            function playTimelapse() {
+                isPlaying = true;
+                
+                function animate() {
+                    currentFrame = (currentFrame + 1) % timelapseFrames.length;
+                    renderTimelapseFrame(timelapseFrames[currentFrame]);
+                    
+                    if (isPlaying) {
+                        animationId = setTimeout(() => {
+                            requestAnimationFrame(animate);
+                        }, 500 / timelapseSpeed);
+                    }
+                }
+                
+                animate();
+            }
+            
+            function stopTimelapse() {
+                isPlaying = false;
+                if (animationId) {
+                    clearTimeout(animationId);
+                }
+            }
+        }
+
+        // Canvas interaction events
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const y = Math.floor((e.clientY - rect.top) * scaleY);
+            
+            placePixel(x, y);
         });
 
-        pixel.addEventListener('mouseleave', () => {
-          const creatorBox = document.getElementById('creatorBox');
-          creatorBox.style.display = 'none';
+        // Hover effect to show where pixel will be placed
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const y = Math.floor((e.clientY - rect.top) * scaleY);
+            
+            // Update coordinates display
+            document.getElementById('coordinates').textContent = `(${x}, ${y})`;
+            
+            // Show hover preview
+            if (x >= 0 && x < canvasSize && y >= 0 && y < canvasSize) {
+                hoverPixel.style.display = 'block';
+                hoverPixel.style.left = (x * pixelSize * zoom) + 'px';
+                hoverPixel.style.top = (y * pixelSize * zoom) + 'px';
+                hoverPixel.style.backgroundColor = selectedColor;
+            } else {
+                hoverPixel.style.display = 'none';
+            }
+        });
+        
+        canvas.addEventListener('mouseout', () => {
+            hoverPixel.style.display = 'none';
         });
 
-        canvas.appendChild(pixel);
-      }
-    }
+        // Zoom controls
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            zoom = Math.min(zoom + 0.5, 5);
+            resizeCanvas();
+        });
+        
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            zoom = Math.max(zoom - 0.5, 0.5);
+            resizeCanvas();
+        });
+        
+        document.getElementById('zoom-reset').addEventListener('click', () => {
+            zoom = 1;
+            resizeCanvas();
+        });
 
-    // Set initial canvas size if not defined
-    setCanvasSize(50, 50);  // Default size, will be updated by Firebase
+        // Panning/dragging the canvas
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            canvas.style.cursor = 'grabbing';
+        });
+        
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - lastMouseX;
+            const dy = e.clientY - lastMouseY;
+            
+            // Update offset (but we're not implementing panning in this simplified version)
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            canvas.style.cursor = 'crosshair';
+        });
 
-    // Add event listeners to the palette
-    palette.addEventListener('click', (event) => {
-      if (event.target.classList.contains('color')) {
-        document.querySelectorAll('.color').forEach(color => color.classList.remove('selected'));
-        event.target.classList.add('selected');
-        selectedColor = event.target.getAttribute('data-color');
-      }
-    });
+        // Initialize the application
+        function init() {
+            drawCanvas();
+            setupHistoryDisplay();
+            setupUserPresence();
+            setupTimelapseView();
+        }
 
-    // Check if the user is banned when the page loads
-    checkIfUserBanned();
-  </script>
+        // Start the app
+        init();
+    </script>
 </body>
 </html>
