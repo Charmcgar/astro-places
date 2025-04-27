@@ -1,206 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>r/Places Canvas</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-
-        .canvas-container {
-            display: grid;
-            gap: 1px;
-            background-color: #ccc;
-            padding: 10px;
-            border: 2px solid #333;
-        }
-
-        .pixel {
-            width: 10px;
-            height: 10px;
-            background-color: white;
-            border: 1px solid transparent;
-            cursor: pointer;
-            transition: box-shadow 0.2s;
-        }
-
-        .pixel:hover {
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-        }
-
-        .color-palette {
-            margin-top: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .color {
-            width: 20px;
-            height: 20px;
-            border: 2px solid #333;
-            cursor: pointer;
-        }
-
-        .color.selected {
-            outline: 2px solid black;
-        }
-
-        #creatorBox {
-            position: fixed;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            display: none;
-            z-index: 10;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>r/Places Canvas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+    }
+    .canvas-container {
+      margin-top: 20px;
+      display: grid;
+      gap: 1px;
+      background-color: #ccc;
+      padding: 10px;
+      border: 2px solid #333;
+      position: relative;
+    }
+    .pixel {
+      width: 10px;
+      height: 10px;
+      background-color: white;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+      position: relative;
+    }
+    .pixel:hover {
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    }
+    .color-palette {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    .color {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #333;
+      cursor: pointer;
+    }
+    .color.selected {
+      outline: 2px solid black;
+    }
+    #creatorBox {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+      z-index: 10;
+    }
+  </style>
 </head>
 <body>
-    <div>
-        <div class="canvas-container" id="canvas"></div>
-        <div class="color-palette" id="palette">
-            <div class="color" style="background-color: red;" data-color="red"></div>
-            <div class="color" style="background-color: blue;" data-color="blue"></div>
-            <div class="color" style="background-color: green;" data-color="green"></div>
-            <div class="color" style="background-color: yellow;" data-color="yellow"></div>
-            <div class="color" style="background-color: black;" data-color="black"></div>
-            <div class="color" style="background-color: white; border-color: #ccc;" data-color="white"></div>
-        </div>
-    </div>
 
-    <div id="creatorBox">Placed by: loading...</div>
+  <div class="canvas-container" id="canvas"></div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+  <div class="color-palette" id="palette">
+    <div class="color" style="background-color: red;" data-color="red"></div>
+    <div class="color" style="background-color: blue;" data-color="blue"></div>
+    <div class="color" style="background-color: green;" data-color="green"></div>
+    <div class="color" style="background-color: yellow;" data-color="yellow"></div>
+    <div class="color" style="background-color: black;" data-color="black"></div>
+    <div class="color" style="background-color: white; border-color: #ccc;" data-color="white"></div>
+  </div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
-            authDomain: "astro-places-1aec2.firebaseapp.com",
-            projectId: "astro-places-1aec2",
-            storageBucket: "astro-places-1aec2.appspot.com",
-            messagingSenderId: "502500788903",
-            appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
-            measurementId: "G-6J7SM1KM05",
-            databaseURL: "https://astro-places-1aec2-default-rtdb.firebaseio.com"
-        };
+  <div id="creatorBox">Placed by: loading...</div>
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        const canvas = document.getElementById('canvas');
-        const palette = document.getElementById('palette');
-        const creatorBox = document.getElementById('creatorBox');
+    // Firebase configuration and initialization
+    const firebaseConfig = {
+      apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
+      authDomain: "astro-places-1aec2.firebaseapp.com",
+      projectId: "astro-places-1aec2",
+      storageBucket: "astro-places-1aec2.appspot.com",
+      messagingSenderId: "502500788903",
+      appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
+      measurementId: "G-6J7SM1KM05"
+    };
 
-        let selectedColor = 'red';
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
 
-        // Set or get persistent userId
-        let userId = localStorage.getItem('userId');
-        if (!userId) {
-            userId = Math.random().toString(36).substring(2, 9);
-            localStorage.setItem('userId', userId);
+    // Variables
+    const canvas = document.getElementById('canvas');
+    const palette = document.getElementById('palette');
+    let selectedColor = 'red';
+    let userId = Math.random().toString(36).substring(2, 9); // Random user ID for this session
+
+    // Function to check if the user is banned
+    function checkIfUserBanned() {
+      const bannedRef = ref(database, `banned/${userId}`);
+      get(bannedRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          alert("You are banned from editing the canvas.");
+          disableCanvas();
         }
+      });
+    }
 
-        // Check if user is banned
-        function checkIfUserBanned() {
-            const bannedRef = ref(database, `banned/${userId}`);
-            get(bannedRef).then((snapshot) => {
-                if (snapshot.exists()) {
-                    alert("You are banned from editing the canvas.");
-                    disableCanvas();
-                }
-            });
-        }
+    // Disable the canvas if the user is banned
+    function disableCanvas() {
+      const pixels = document.querySelectorAll('.pixel');
+      pixels.forEach(pixel => pixel.style.pointerEvents = 'none');
+    }
 
-        function disableCanvas() {
-            const pixels = document.querySelectorAll('.pixel');
-            pixels.forEach(pixel => pixel.style.pointerEvents = 'none');
-        }
+    // Listen for canvas size changes
+    const canvasSizeRef = ref(database, 'canvas/size');
+    onValue(canvasSizeRef, (snapshot) => {
+      const size = snapshot.val();
+      if (size) {
+        setCanvasSize(size.width, size.height);
+      }
+    });
 
-        // Setup the canvas based on size
-        function setCanvasSize(width, height) {
-            canvas.innerHTML = '';
-            canvas.style.gridTemplateColumns = `repeat(${width}, 10px)`;
-            canvas.style.gridTemplateRows = `repeat(${height}, 10px)`;
+    // Set the canvas size based on the database
+    function setCanvasSize(width, height) {
+      canvas.innerHTML = '';  // Clear current pixels
 
-            for (let i = 0; i < width * height; i++) {
-                const pixel = document.createElement('div');
-                pixel.classList.add('pixel');
-                pixel.dataset.index = i;
+      // Dynamically adjust grid-template-columns and rows based on the size
+      canvas.style.gridTemplateColumns = `repeat(${width}, 10px)`;
+      canvas.style.gridTemplateRows = `repeat(${height}, 10px)`;
 
-                const pixelRef = ref(database, `pixels/${i}`);
-                onValue(pixelRef, (snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        pixel.style.backgroundColor = data.color || 'white';
-                        pixel.dataset.creator = data.userId || 'Unknown';
-                    } else {
-                        pixel.style.backgroundColor = 'white';
-                        pixel.dataset.creator = 'None';
-                    }
-                });
+      // Recreate the pixels for the new canvas size
+      for (let i = 0; i < width * height; i++) {
+        const pixel = document.createElement('div');
+        pixel.classList.add('pixel');
+        pixel.dataset.index = i;
 
-                pixel.addEventListener('click', () => {
-                    set(pixelRef, {
-                        color: selectedColor,
-                        userId: userId
-                    });
-                });
-
-                pixel.addEventListener('mouseenter', () => {
-                    const creator = pixel.dataset.creator || 'Unknown';
-                    creatorBox.textContent = `Placed by: ${creator}`;
-                    creatorBox.style.display = 'block';
-                });
-
-                pixel.addEventListener('mouseleave', () => {
-                    creatorBox.style.display = 'none';
-                });
-
-                canvas.appendChild(pixel);
-            }
-        }
-
-        // Listen for canvas size changes
-        const canvasSizeRef = ref(database, 'canvas/size');
-        onValue(canvasSizeRef, (snapshot) => {
-            const size = snapshot.val();
-            if (size) {
-                setCanvasSize(size.width, size.height);
-            }
+        const pixelRef = ref(database, `pixels/${i}`);
+        onValue(pixelRef, (snapshot) => {
+          const color = snapshot.val();
+          pixel.style.backgroundColor = color || 'white';
         });
 
-        // Default size in case DB is empty
-        setCanvasSize(50, 50);
-
-        // Setup color palette
-        palette.addEventListener('click', (event) => {
-            if (event.target.classList.contains('color')) {
-                document.querySelectorAll('.color').forEach(color => color.classList.remove('selected'));
-                event.target.classList.add('selected');
-                selectedColor = event.target.getAttribute('data-color');
-            }
+        pixel.addEventListener('click', () => {
+          if (userId) {
+            set(pixelRef, selectedColor);
+          }
         });
 
-        // Check ban on load
-        checkIfUserBanned();
+        // Hover event to display creator's user ID
+        pixel.addEventListener('mouseenter', () => {
+          const creatorIdRef = ref(database, `pixels/${i}/creator`);
+          get(creatorIdRef).then((snapshot) => {
+            const creatorId = snapshot.val();
+            const creatorBox = document.getElementById('creatorBox');
+            if (creatorId) {
+              creatorBox.textContent = `Placed by: ${creatorId}`;
+              creatorBox.style.display = 'block';
+            } else {
+              creatorBox.style.display = 'none';
+            }
+          });
+        });
 
-        // Set initial selected color
-        document.querySelector('.color[data-color="red"]').classList.add('selected');
-    </script>
+        pixel.addEventListener('mouseleave', () => {
+          const creatorBox = document.getElementById('creatorBox');
+          creatorBox.style.display = 'none';
+        });
+
+        canvas.appendChild(pixel);
+      }
+    }
+
+    // Set initial canvas size if not defined
+    setCanvasSize(50, 50);  // Default size, will be updated by Firebase
+
+    // Add event listeners to the palette
+    palette.addEventListener('click', (event) => {
+      if (event.target.classList.contains('color')) {
+        document.querySelectorAll('.color').forEach(color => color.classList.remove('selected'));
+        event.target.classList.add('selected');
+        selectedColor = event.target.getAttribute('data-color');
+      }
+    });
+
+    // Check if the user is banned when the page loads
+    checkIfUserBanned();
+  </script>
 </body>
 </html>
