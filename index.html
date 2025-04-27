@@ -785,7 +785,7 @@
                         currentCanvasState[key] = entry.color;
                         
                         // Add a frame every 10 pixels or at the end
-                        if (frameCount % 10 === 0 || frameCount === entries.length - 1) {
+                        if (frameCount % 5 === 0 || frameCount === entries.length - 1) {
                             timelapseFrames.push({...currentCanvasState});
                         }
                         frameCount++;
