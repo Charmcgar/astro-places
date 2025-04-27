@@ -62,6 +62,36 @@
       display: none;
       z-index: 10;
     }
+    /* Mod Dashboard */
+    #modDashboard {
+      display: none;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      width: 80%;
+      max-width: 500px;
+      position: fixed;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+    }
+    #modDashboard input {
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    #modDashboard button {
+      padding: 10px;
+      background-color: red;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #modDashboard button:hover {
+      background-color: darkred;
+    }
   </style>
 </head>
 <body>
@@ -79,9 +109,24 @@
 
   <div id="creatorBox">Placed by: loading...</div>
 
+  <!-- Mod Dashboard -->
+  <div id="modDashboard">
+    <h2>Mod Dashboard</h2>
+    <input type="text" id="modCode" placeholder="Enter code to access mod tools">
+    <button id="accessModButton">Access Mod Dashboard</button>
+    <div id="modTools" style="display: none;">
+      <h3>Ban a User</h3>
+      <input type="text" id="banUserId" placeholder="Enter User ID">
+      <button id="banButton">Ban User</button>
+      <h3>Clear Pixel</h3>
+      <input type="number" id="clearPixelId" placeholder="Enter Pixel ID">
+      <button id="clearPixelButton">Clear Pixel</button>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+    import { getDatabase, ref, onValue, set, get, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
     // Firebase configuration and initialization
     const firebaseConfig = {
@@ -100,8 +145,47 @@
     // Variables
     const canvas = document.getElementById('canvas');
     const palette = document.getElementById('palette');
+    const modCodeInput = document.getElementById('modCode');
+    const accessModButton = document.getElementById('accessModButton');
+    const modDashboard = document.getElementById('modDashboard');
+    const modTools = document.getElementById('modTools');
+    const banUserIdInput = document.getElementById('banUserId');
+    const banButton = document.getElementById('banButton');
+    const clearPixelIdInput = document.getElementById('clearPixelId');
+    const clearPixelButton = document.getElementById('clearPixelButton');
     let selectedColor = 'red';
     let userId = Math.random().toString(36).substring(2, 9); // Random user ID for this session
+
+    // Check if the entered code is correct to access mod tools
+    accessModButton.addEventListener('click', () => {
+      if (modCodeInput.value === '608') {
+        modDashboard.style.display = 'block';  // Show the mod dashboard
+        modCodeInput.style.display = 'none';  // Hide the code input field
+        accessModButton.style.display = 'none';
+      } else {
+        alert('Invalid code');
+      }
+    });
+
+    // Ban a user
+    banButton.addEventListener('click', () => {
+      const bannedUserId = banUserIdInput.value;
+      if (bannedUserId) {
+        const bannedRef = ref(database, `banned/${bannedUserId}`);
+        set(bannedRef, true);
+        alert(`User ${bannedUserId} is banned.`);
+      }
+    });
+
+    // Clear a pixel
+    clearPixelButton.addEventListener('click', () => {
+      const pixelId = clearPixelIdInput.value;
+      if (pixelId) {
+        const pixelRef = ref(database, `pixels/${pixelId}`);
+        set(pixelRef, 'white');
+        alert(`Pixel ${pixelId} cleared.`);
+      }
+    });
 
     // Function to check if the user is banned
     function checkIfUserBanned() {
