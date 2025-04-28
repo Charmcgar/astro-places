@@ -370,6 +370,10 @@
             border-radius: 4px;
             flex-grow: 1;
         }
+        select.admin-input {
+            width: auto;
+            min-width: 100px;
+        }
         @media (max-width: 768px) {
             .color-picker {
                 max-width: 320px;
@@ -466,6 +470,13 @@
             <div class="admin-controls">
                 <button id="import-canvas" class="admin-button">Import Canvas</button>
                 <input type="file" id="canvas-file" class="admin-input" accept=".json,.png">
+            </div>
+            <div class="admin-controls">
+                <button id="export-canvas" class="admin-button">Export Canvas</button>
+                <select id="export-format" class="admin-input">
+                    <option value="json">JSON</option>
+                    <option value="png">PNG</option>
+                </select>
             </div>
             <div class="banned-users">
                 <div class="admin-title">Banned Users</div>
@@ -1116,27 +1127,96 @@
                 }
             });
             
-            // Update banned users list
-            function updateBannedUsersList() {
-                const bannedUsersList = document.getElementById('banned-users-list');
-                bannedUsersList.innerHTML = '';
+            // Export canvas
+            document.getElementById('export-canvas').addEventListener('click', () => {
+                const format = document.getElementById('export-format').value;
                 
-                const bannedRef = ref(db, 'bannedUsers');
-                get(bannedRef).then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const bannedUsers = snapshot.val();
-                        for (const userId in bannedUsers) {
-                            const bannedUser = document.createElement('div');
-                            bannedUser.className = 'banned-user';
-                            bannedUser.innerHTML = `
-                                <span>${userId}</span>
-                                <button class="unban-button" data-user-id="${userId}">Unban</button>
-                            `;
-                            bannedUsersList.appendChild(bannedUser);
-                        }
-                    } else {
-                        bannedUsersList.innerHTML = '<div>No banned users</div>';
+                if (format === 'json') {
+                    exportCanvasAsJSON();
+                } else if (format === 'png') {
+                    exportCanvasAsPNG();
+                }
+            });
+            
+            function exportCanvasAsJSON() {
+                const pixelsRef = ref(db, 'pixels');
+                get(pixelsRef).then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        showNotification('No canvas data to export');
+                        return;
                     }
+                    
+                    const pixelData = snapshot.val();
+                    const exportData = {};
+                    
+                    // Simplify the data structure for export
+                    for (const key in pixelData) {
+                        // Support both formats: string color or object with color property
+                        exportData[key] = typeof pixelData[key] === 'string' ? pixelData[key] : pixelData[key].color;
+                    }
+                    
+                    // Create download link
+                    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
+                    const downloadAnchor = document.createElement('a');
+                    downloadAnchor.setAttribute('href', dataStr);
+                    downloadAnchor.setAttribute('download', 'canvas_export_' + new Date().toISOString().slice(0, 10) + '.json');
+                    document.body.appendChild(downloadAnchor);
+                    downloadAnchor.click();
+                    document.body.removeChild(downloadAnchor);
+                    
+                    showNotification('Canvas exported as JSON');
+                }).catch(error => {
+                    showNotification('Error exporting canvas: ' + error.message);
+                });
+            }
+            
+            function exportCanvasAsPNG() {
+                // Create a temporary canvas with the original size
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvasSize;
+                tempCanvas.height = canvasSize;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Fill with white background
+                tempCtx.fillStyle = '#FFFFFF';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                
+                // Get current pixel data from Firebase
+                const pixelsRef = ref(db, 'pixels');
+                get(pixelsRef).then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        showNotification('No canvas data to export');
+                        return;
+                    }
+                    
+                    const pixelData = snapshot.val();
+                    
+                    // Draw all pixels
+                    for (const key in pixelData) {
+                        const [x, y] = key.split(',');
+                        const pixelValue = pixelData[key];
+                        // Support both formats: string color or object with color property
+                        const pixelColor = typeof pixelValue === 'string' ? pixelValue : (pixelValue && pixelValue.color ? pixelValue.color : '#FFFFFF');
+                        
+                        tempCtx.fillStyle = pixelColor;
+                        tempCtx.fillRect(parseInt(x), parseInt(y), 1, 1);
+                    }
+                    
+                    // Create download link
+                    tempCanvas.toBlob((blob) => {
+                        const url = URL.createObjectURL(blob);
+                        const downloadAnchor = document.createElement('a');
+                        downloadAnchor.setAttribute('href', url);
+                        downloadAnchor.setAttribute('download', 'canvas_export_' + new Date().toISOString().slice(0, 10) + '.png');
+                        document.body.appendChild(downloadAnchor);
+                        downloadAnchor.click();
+                        document.body.removeChild(downloadAnchor);
+                        URL.revokeObjectURL(url);
+                        
+                        showNotification('Canvas exported as PNG');
+                    });
+                }).catch(error => {
+                    showNotification('Error exporting canvas: ' + error.message);
                 });
             }
             
@@ -1178,6 +1258,30 @@
                 }
                 
                 return closestColor;
+            }
+            
+            // Update banned users list
+            function updateBannedUsersList() {
+                const bannedUsersList = document.getElementById('banned-users-list');
+                bannedUsersList.innerHTML = '';
+                
+                const bannedRef = ref(db, 'bannedUsers');
+                get(bannedRef).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const bannedUsers = snapshot.val();
+                        for (const userId in bannedUsers) {
+                            const bannedUser = document.createElement('div');
+                            bannedUser.className = 'banned-user';
+                            bannedUser.innerHTML = `
+                                <span>${userId}</span>
+                                <button class="unban-button" data-user-id="${userId}">Unban</button>
+                            `;
+                            bannedUsersList.appendChild(bannedUser);
+                        }
+                    } else {
+                        bannedUsersList.innerHTML = '<div>No banned users</div>';
+                    }
+                });
             }
             
             // Initialize banned users list
