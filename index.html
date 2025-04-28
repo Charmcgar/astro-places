@@ -370,6 +370,48 @@
             border-radius: 4px;
             flex-grow: 1;
         }
+        .save-load-section {
+            width: 100%;
+            margin-top: 1rem;
+            padding: 15px;
+            background-color: #272729;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .save-load-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #e8e6e3;
+        }
+        .save-load-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .save-slot {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background-color: #343536;
+            padding: 10px;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .save-slot-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .save-slot-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .save-slot-button {
+            flex: 1;
+            padding: 5px;
+            font-size: 12px;
+        }
         @media (max-width: 768px) {
             .color-picker {
                 max-width: 320px;
@@ -448,6 +490,19 @@
             </div>
         </div>
         
+        <!-- New Save/Load Section -->
+        <div class="save-load-section">
+            <div class="save-load-title">Save/Load Canvas</div>
+            <div class="save-load-controls">
+                <button id="export-canvas">Export as JSON</button>
+                <button id="import-canvas">Import from JSON</button>
+                <input type="file" id="canvas-file" accept=".json" style="display: none;">
+            </div>
+            <div id="save-slots">
+                <!-- Save slots will be added here dynamically -->
+            </div>
+        </div>
+        
         <div class="admin-login" id="admin-login">
             <div class="admin-login-title">Admin Login</div>
             <div class="admin-login-controls">
@@ -462,10 +517,6 @@
                 <button id="clear-canvas" class="admin-button">Clear Canvas</button>
                 <button id="ban-user" class="admin-button">Ban User</button>
                 <input type="text" id="user-to-ban" class="admin-input" placeholder="Enter user ID to ban">
-            </div>
-            <div class="admin-controls">
-                <button id="import-canvas" class="admin-button">Import Canvas</button>
-                <input type="file" id="canvas-file" class="admin-input" accept=".json,.png">
             </div>
             <div class="banned-users">
                 <div class="admin-title">Banned Users</div>
@@ -1014,108 +1065,6 @@
                 }
             });
             
-            // Import canvas from file
-            document.getElementById('import-canvas').addEventListener('click', () => {
-                const fileInput = document.getElementById('canvas-file');
-                if (fileInput.files.length === 0) {
-                    showNotification('Please select a file to import');
-                    return;
-                }
-                
-                const file = fileInput.files[0];
-                const reader = new FileReader();
-                
-                if (file.type === 'application/json') {
-                    // JSON import
-                    reader.onload = (e) => {
-                        try {
-                            const canvasData = JSON.parse(e.target.result);
-                            if (typeof canvasData !== 'object') {
-                                throw new Error('Invalid JSON format');
-                            }
-                            
-                            // Clear existing canvas
-                            const pixelsRef = ref(db, 'pixels');
-                            remove(pixelsRef)
-                                .then(() => {
-                                    // Import new pixels
-                                    const updates = {};
-                                    for (const key in canvasData) {
-                                        updates[`pixels/${key}`] = {
-                                            color: canvasData[key],
-                                            userId: 'system',
-                                            timestamp: Date.now()
-                                        };
-                                    }
-                                    
-                                    update(ref(db), updates)
-                                        .then(() => showNotification('Canvas imported successfully'))
-                                        .catch(error => showNotification('Error importing canvas: ' + error.message));
-                                })
-                                .catch(error => showNotification('Error clearing canvas: ' + error.message));
-                        } catch (error) {
-                            showNotification('Error parsing JSON: ' + error.message);
-                        }
-                    };
-                    reader.readAsText(file);
-                } else if (file.type.startsWith('image/')) {
-                    // Image import
-                    reader.onload = (e) => {
-                        const img = new Image();
-                        img.onload = () => {
-                            // Create temporary canvas to process image
-                            const tempCanvas = document.createElement('canvas');
-                            tempCanvas.width = canvasSize;
-                            tempCanvas.height = canvasSize;
-                            const tempCtx = tempCanvas.getContext('2d');
-                            
-                            // Draw image to temp canvas (scaled to fit)
-                            tempCtx.drawImage(img, 0, 0, canvasSize, canvasSize);
-                            
-                            // Get pixel data
-                            const imageData = tempCtx.getImageData(0, 0, canvasSize, canvasSize);
-                            const data = imageData.data;
-                            
-                            // Convert to our color palette
-                            const updates = {};
-                            for (let y = 0; y < canvasSize; y++) {
-                                for (let x = 0; x < canvasSize; x++) {
-                                    const index = (y * canvasSize + x) * 4;
-                                    const r = data[index];
-                                    const g = data[index + 1];
-                                    const b = data[index + 2];
-                                    const a = data[index + 3];
-                                    
-                                    if (a > 0) { // Only process non-transparent pixels
-                                        const hexColor = rgbToHex(r, g, b);
-                                        const closestColor = findClosestColor(hexColor);
-                                        updates[`pixels/${x},${y}`] = {
-                                            color: closestColor,
-                                            userId: 'system',
-                                            timestamp: Date.now()
-                                        };
-                                    }
-                                }
-                            }
-                            
-                            // Clear existing canvas and import new pixels
-                            const pixelsRef = ref(db, 'pixels');
-                            remove(pixelsRef)
-                                .then(() => {
-                                    update(ref(db), updates)
-                                        .then(() => showNotification('Image imported successfully'))
-                                        .catch(error => showNotification('Error importing image: ' + error.message));
-                                })
-                                .catch(error => showNotification('Error clearing canvas: ' + error.message));
-                        };
-                        img.src = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    showNotification('Unsupported file type');
-                }
-            });
-            
             // Update banned users list
             function updateBannedUsersList() {
                 const bannedUsersList = document.getElementById('banned-users-list');
@@ -1138,46 +1087,6 @@
                         bannedUsersList.innerHTML = '<div>No banned users</div>';
                     }
                 });
-            }
-            
-            // Helper function to convert RGB to hex
-            function rgbToHex(r, g, b) {
-                return '#' + [r, g, b].map(x => {
-                    const hex = x.toString(16);
-                    return hex.length === 1 ? '0' + hex : hex;
-                }).join('');
-            }
-            
-            // Helper function to find closest color in palette
-            function findClosestColor(hexColor) {
-                if (!hexColor.startsWith('#')) return '#FFFFFF';
-                
-                // Convert hex to RGB
-                const r = parseInt(hexColor.substr(1, 2), 16);
-                const g = parseInt(hexColor.substr(3, 2), 16);
-                const b = parseInt(hexColor.substr(5, 2), 16);
-                
-                let closestColor = '#FFFFFF';
-                let minDistance = Infinity;
-                
-                for (const color of colors) {
-                    const cr = parseInt(color.substr(1, 2), 16);
-                    const cg = parseInt(color.substr(3, 2), 16);
-                    const cb = parseInt(color.substr(5, 2), 16);
-                    
-                    const distance = Math.sqrt(
-                        Math.pow(r - cr, 2) + 
-                        Math.pow(g - cg, 2) + 
-                        Math.pow(b - cb, 2)
-                    );
-                    
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        closestColor = color;
-                    }
-                }
-                
-                return closestColor;
             }
             
             // Initialize banned users list
@@ -1219,6 +1128,198 @@
                     adminLoginButton.click();
                 }
             });
+        }
+
+        // Save/Load system
+        function setupSaveLoadSystem() {
+            const exportButton = document.getElementById('export-canvas');
+            const importButton = document.getElementById('import-canvas');
+            const fileInput = document.getElementById('canvas-file');
+            const saveSlotsContainer = document.getElementById('save-slots');
+            
+            // Initialize save slots
+            function initializeSaveSlots() {
+                saveSlotsContainer.innerHTML = '';
+                
+                // Create 5 save slots
+                for (let i = 1; i <= 5; i++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'save-slot';
+                    slot.innerHTML = `
+                        <div class="save-slot-name">Slot ${i}</div>
+                        <div class="save-slot-actions">
+                            <button class="save-slot-button" data-slot="${i}" data-action="save">Save</button>
+                            <button class="save-slot-button" data-slot="${i}" data-action="load">Load</button>
+                            <button class="save-slot-button" data-slot="${i}" data-action="delete">Delete</button>
+                        </div>
+                    `;
+                    saveSlotsContainer.appendChild(slot);
+                }
+                
+                // Add event listeners to all slot buttons
+                document.querySelectorAll('.save-slot-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const slot = button.dataset.slot;
+                        const action = button.dataset.action;
+                        
+                        if (action === 'save') {
+                            saveCanvasToSlot(slot);
+                        } else if (action === 'load') {
+                            loadCanvasFromSlot(slot);
+                        } else if (action === 'delete') {
+                            deleteCanvasSlot(slot);
+                        }
+                    });
+                });
+            }
+            
+            // Save canvas to a slot
+            function saveCanvasToSlot(slotNumber) {
+                const pixelsRef = ref(db, 'pixels');
+                get(pixelsRef).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const pixelData = snapshot.val();
+                        const saveData = {};
+                        
+                        // Convert to simplified format
+                        for (const key in pixelData) {
+                            const pixelValue = pixelData[key];
+                            saveData[key] = typeof pixelValue === 'string' ? pixelValue : 
+                                            (pixelValue && pixelValue.color ? pixelValue.color : '#FFFFFF');
+                        }
+                        
+                        // Save to localStorage
+                        localStorage.setItem(`place_save_slot_${slotNumber}`, JSON.stringify(saveData));
+                        showNotification(`Canvas saved to slot ${slotNumber}`);
+                    }
+                });
+            }
+            
+            // Load canvas from a slot
+            function loadCanvasFromSlot(slotNumber) {
+                const saveData = localStorage.getItem(`place_save_slot_${slotNumber}`);
+                
+                if (!saveData) {
+                    showNotification(`No data found in slot ${slotNumber}`);
+                    return;
+                }
+                
+                if (confirm(`Are you sure you want to load canvas from slot ${slotNumber}? This will overwrite the current canvas.`)) {
+                    try {
+                        const pixelData = JSON.parse(saveData);
+                        const updates = {};
+                        
+                        // Clear existing canvas
+                        const pixelsRef = ref(db, 'pixels');
+                        remove(pixelsRef)
+                            .then(() => {
+                                // Import new pixels
+                                for (const key in pixelData) {
+                                    updates[`pixels/${key}`] = {
+                                        color: pixelData[key],
+                                        userId: 'system',
+                                        timestamp: Date.now()
+                                    };
+                                }
+                                
+                                update(ref(db), updates)
+                                    .then(() => showNotification(`Canvas loaded from slot ${slotNumber}`))
+                                    .catch(error => showNotification('Error loading canvas: ' + error.message));
+                            })
+                            .catch(error => showNotification('Error clearing canvas: ' + error.message));
+                    } catch (error) {
+                        showNotification('Error parsing save data: ' + error.message);
+                    }
+                }
+            }
+            
+            // Delete canvas from a slot
+            function deleteCanvasSlot(slotNumber) {
+                if (confirm(`Are you sure you want to delete slot ${slotNumber}?`)) {
+                    localStorage.removeItem(`place_save_slot_${slotNumber}`);
+                    showNotification(`Slot ${slotNumber} deleted`);
+                }
+            }
+            
+            // Export canvas as JSON file
+            exportButton.addEventListener('click', () => {
+                const pixelsRef = ref(db, 'pixels');
+                get(pixelsRef).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const pixelData = snapshot.val();
+                        const saveData = {};
+                        
+                        // Convert to simplified format
+                        for (const key in pixelData) {
+                            const pixelValue = pixelData[key];
+                            saveData[key] = typeof pixelValue === 'string' ? pixelValue : 
+                                            (pixelValue && pixelValue.color ? pixelValue.color : '#FFFFFF');
+                        }
+                        
+                        // Create download link
+                        const dataStr = JSON.stringify(saveData, null, 2);
+                        const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+                        
+                        const exportFileDefaultName = `place_canvas_${new Date().toISOString().slice(0, 10)}.json`;
+                        
+                        const linkElement = document.createElement('a');
+                        linkElement.setAttribute('href', dataUri);
+                        linkElement.setAttribute('download', exportFileDefaultName);
+                        linkElement.click();
+                        
+                        showNotification('Canvas exported successfully');
+                    }
+                });
+            });
+            
+            // Import canvas from JSON file
+            importButton.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const canvasData = JSON.parse(event.target.result);
+                        if (typeof canvasData !== 'object') {
+                            throw new Error('Invalid JSON format');
+                        }
+                        
+                        if (confirm('Are you sure you want to import this canvas? This will overwrite the current canvas.')) {
+                            // Clear existing canvas
+                            const pixelsRef = ref(db, 'pixels');
+                            remove(pixelsRef)
+                                .then(() => {
+                                    // Import new pixels
+                                    const updates = {};
+                                    for (const key in canvasData) {
+                                        updates[`pixels/${key}`] = {
+                                            color: canvasData[key],
+                                            userId: 'system',
+                                            timestamp: Date.now()
+                                        };
+                                    }
+                                    
+                                    update(ref(db), updates)
+                                        .then(() => showNotification('Canvas imported successfully'))
+                                        .catch(error => showNotification('Error importing canvas: ' + error.message));
+                                })
+                                .catch(error => showNotification('Error clearing canvas: ' + error.message));
+                        }
+                    } catch (error) {
+                        showNotification('Error parsing JSON: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+                fileInput.value = ''; // Reset file input
+            });
+            
+            // Initialize the save slots
+            initializeSaveSlots();
         }
 
         // Canvas interaction events
@@ -1307,6 +1408,7 @@
             setupUserPresence();
             setupTimelapseView();
             setupAdminLogin();
+            setupSaveLoadSystem();
             
             // Hide admin panel by default
             document.getElementById('admin-panel').style.display = 'none';
