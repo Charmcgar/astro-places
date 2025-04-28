@@ -563,21 +563,19 @@
         // Hover preview
         const hoverPixel = document.getElementById('hover-pixel');
         
-        // Available colors with official r/place 2022 palette
+        // Available colors with official r/place 2022 palette (now with # prefix)
         const colors = [
-'FFFFFF', 'D4D7D9', '898D90', '515252', '000000',
-'D80000', 'FF4500', 'FFA800', 'FFD635', '00A368',
-'7EED56', '2450A4', '3690EA', '51E9F4', '811E9F',
-'B44AC0', 'FF99AA', '6A5CFF', 'E4ABFF', 'BE0039',
-'FF3881', '493AC1', '6D001A', '6D482F', '9C6926',
-'008080', '00CED1', '20B2AA', '556B2F', '8FBC8F',
-'F08080', 'FA8072', 'FFDAB9', 'FFB6C1', 'DB7093',
-'9370DB', 'BA55D3', '8A2BE2', '4B0082', '4169E1',
-'00BFFF', '1E90FF', '7B68EE', 'FF6347', 'FF7F50',
-'FFA07A', 'EEE8AA', '98FB98', 'ADFF2F'
-
-];
-
+            '#FFFFFF', '#D4D7D9', '#898D90', '#515252', '#000000',
+            '#D80000', '#FF4500', '#FFA800', '#FFD635', '#00A368',
+            '#7EED56', '#2450A4', '#3690EA', '#51E9F4', '#811E9F',
+            '#B44AC0', '#FF99AA', '#6A5CFF', '#E4ABFF', '#BE0039',
+            '#FF3881', '#493AC1', '#6D001A', '#6D482F', '#9C6926',
+            '#008080', '#00CED1', '#20B2AA', '#556B2F', '#8FBC8F',
+            '#F08080', '#FA8072', '#FFDAB9', '#FFB6C1', '#DB7093',
+            '#9370DB', '#BA55D3', '#8A2BE2', '#4B0082', '#4169E1',
+            '#00BFFF', '#1E90FF', '#7B68EE', '#FF6347', '#FF7F50',
+            '#FFA07A', '#EEE8AA', '#98FB98', '#ADFF2F'
+        ];
 
         // Create color picker
         const colorPicker = document.getElementById('color-picker');
@@ -645,7 +643,14 @@
                     const [x, y] = key.split(',');
                     const pixelValue = pixelData[key];
                     // Support both formats: string color or object with color property
-                    const pixelColor = typeof pixelValue === 'string' ? pixelValue : (pixelValue && pixelValue.color ? pixelValue.color : '#FFFFFF');
+                    let pixelColor;
+                    if (typeof pixelValue === 'string') {
+                        pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
+                    } else if (pixelValue && pixelValue.color) {
+                        pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
+                    } else {
+                        pixelColor = '#FFFFFF';
+                    }
                     
                     ctx.fillStyle = pixelColor;
                     ctx.fillRect(parseInt(x), parseInt(y), 1, 1);
@@ -693,10 +698,13 @@
                 return;
             }
             
+            // Ensure color has # prefix
+            const formattedColor = selectedColor.startsWith('#') ? selectedColor : `#${selectedColor}`;
+            
             // Place the pixel in Firebase
             const pixelRef = ref(db, `pixels/${x},${y}`);
             set(pixelRef, {
-                color: selectedColor,
+                color: formattedColor,
                 userId: userId,
                 timestamp: Date.now()
             })
@@ -705,7 +713,7 @@
                 updateCooldown();
                 
                 // Add to history
-                addToHistory(x, y, selectedColor);
+                addToHistory(x, y, formattedColor);
                 
                 // Show notification
                 showNotification('Pixel placed successfully!');
@@ -778,12 +786,15 @@
 
         // Add to history log
         function addToHistory(x, y, color) {
+            // Ensure color has # prefix
+            const formattedColor = color.startsWith('#') ? color : `#${color}`;
+            
             // Add to Firebase history
             const historyRef = ref(db, 'history');
             push(historyRef, {
                 x: x,
                 y: y,
-                color: color,
+                color: formattedColor,
                 userId: userId,
                 timestamp: Date.now()
             });
@@ -809,7 +820,9 @@
                     
                     const colorSwatch = document.createElement('span');
                     colorSwatch.className = 'history-color';
-                    colorSwatch.style.backgroundColor = entry.color;
+                    // Ensure color has # prefix
+                    const displayColor = entry.color.startsWith('#') ? entry.color : `#${entry.color}`;
+                    colorSwatch.style.backgroundColor = displayColor;
                     
                     historyItem.appendChild(colorSwatch);
                     historyItem.appendChild(document.createTextNode(`(${entry.x}, ${entry.y})`));
@@ -924,7 +937,8 @@
                     let frameCount = 0;
                     for (const entry of entries) {
                         const key = `${entry.x},${entry.y}`;
-                        currentCanvasState[key] = entry.color;
+                        // Ensure color has # prefix
+                        currentCanvasState[key] = entry.color.startsWith('#') ? entry.color : `#${entry.color}`;
                         
                         // Add a frame every 10 pixels or at the end
                         if (frameCount % 10 === 0 || frameCount === entries.length - 1) {
@@ -1059,8 +1073,9 @@
                                     // Import new pixels
                                     const updates = {};
                                     for (const key in canvasData) {
+                                        const color = canvasData[key];
                                         updates[`pixels/${key}`] = {
-                                            color: canvasData[key],
+                                            color: color.startsWith('#') ? color : `#${color}`,
                                             userId: 'system',
                                             timestamp: Date.now()
                                         };
@@ -1159,7 +1174,8 @@
                     // Simplify the data structure for export
                     for (const key in pixelData) {
                         // Support both formats: string color or object with color property
-                        exportData[key] = typeof pixelData[key] === 'string' ? pixelData[key] : pixelData[key].color;
+                        const color = typeof pixelData[key] === 'string' ? pixelData[key] : pixelData[key].color;
+                        exportData[key] = color.startsWith('#') ? color : `#${color}`;
                     }
                     
                     // Create download link
@@ -1203,7 +1219,14 @@
                         const [x, y] = key.split(',');
                         const pixelValue = pixelData[key];
                         // Support both formats: string color or object with color property
-                        const pixelColor = typeof pixelValue === 'string' ? pixelValue : (pixelValue && pixelValue.color ? pixelValue.color : '#FFFFFF');
+                        let pixelColor;
+                        if (typeof pixelValue === 'string') {
+                            pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
+                        } else if (pixelValue && pixelValue.color) {
+                            pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
+                        } else {
+                            pixelColor = '#FFFFFF';
+                        }
                         
                         tempCtx.fillStyle = pixelColor;
                         tempCtx.fillRect(parseInt(x), parseInt(y), 1, 1);
