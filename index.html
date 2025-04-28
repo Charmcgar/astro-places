@@ -492,38 +492,41 @@
         
      
         
-        <div class="admin-login" id="admin-login">
-            <div class="admin-login-title">Admin Login</div>
-            <div class="admin-login-controls">
-                <input type="password" id="admin-key" class="admin-login-input" placeholder="Enter admin key">
-                <button id="admin-login-button">Login</button>
-            </div>
+      <!-- Admin Login -->
+<div class="admin-login" id="admin-login">
+    <div class="admin-login-title">Admin Login</div>
+    <div class="admin-login-controls">
+        <input type="password" id="admin-key" class="admin-login-input" placeholder="Enter admin key">
+        <button id="admin-login-button">Login</button>
+    </div>
+</div>
+
+<!-- Admin Panel -->
+<div class="admin-panel" id="admin-panel" style="display: none;">
+    <div class="admin-title">Admin Controls</div>
+    <div class="admin-controls">
+        <button id="clear-canvas" class="admin-button">Clear Canvas</button>
+        <button id="ban-user" class="admin-button">Ban User</button>
+        <input type="text" id="user-to-ban" class="admin-input" placeholder="Enter user ID to ban">
+    </div>
+    <div class="banned-users">
+        <div class="admin-title">Banned Users</div>
+        <div id="banned-users-list"></div>
+    </div>
+
+    <!-- Save/Load Section -->
+    <div class="save-load-section" id="save-load-section" style="display: none;">
+        <div class="save-load-title">Save/Load Canvas</div>
+        <div class="save-load-controls">
+            <button id="export-canvas">Export as JSON</button>
+            <button id="import-canvas">Import from JSON</button>
+            <input type="file" id="canvas-file" accept=".json" style="display: none;">
         </div>
-        
-        <div class="admin-panel" id="admin-panel">
-            <div class="admin-title">Admin Controls</div>
-            <div class="admin-controls">
-                <button id="clear-canvas" class="admin-button">Clear Canvas</button>
-                <button id="ban-user" class="admin-button">Ban User</button>
-                <input type="text" id="user-to-ban" class="admin-input" placeholder="Enter user ID to ban">
-            </div>
-            <div class="banned-users">
-                <div class="admin-title">Banned Users</div>
-                <div id="banned-users-list"></div>
-            </div>
+        <div id="save-slots">
+            <!-- Save slots will be added here dynamically -->
         </div>
-           <!-- New Save/Load Section -->
-        <div class="save-load-section">
-            <div class="save-load-title">Save/Load Canvas</div>
-            <div class="save-load-controls">
-                <button id="export-canvas">Export as JSON</button>
-                <button id="import-canvas">Import from JSON</button>
-                <input type="file" id="canvas-file" accept=".json" style="display: none;">
-            </div>
-            <div id="save-slots">
-                <!-- Save slots will be added here dynamically -->
-            </div>
-        </div>
+    </div>
+</div>
         
         <div class="history-viewer">
             <div class="history-title">Recent Activity</div>
