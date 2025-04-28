@@ -456,13 +456,15 @@
             </div>
         </div>
         
-        <div class="admin-panel" id="admin-panel">
-            <div class="admin-title">Admin Controls</div>
-            <div class="admin-controls">
-                <button id="clear-canvas" class="admin-button">Clear Canvas</button>
-                <button id="ban-user" class="admin-button">Ban User</button>
-                <input type="text" id="user-to-ban" class="admin-input" placeholder="Enter user ID to ban">
-            </div>
+       <div class="admin-panel" id="admin-panel">
+    <div class="admin-title">Admin Controls</div>
+    <div class="admin-controls">
+        <button id="export-canvas" class="admin-button">Export Save</button>
+        <button id="import-canvas" class="admin-button">Import Save</button>
+        <input type="file" id="canvas-file" class="admin-input" accept=".json" hidden>
+    </div>
+    <!-- Rest of admin panel remains same -->
+</div>
             <div class="admin-controls">
                 <button id="import-canvas" class="admin-button">Import Canvas</button>
                 <input type="file" id="canvas-file" class="admin-input" accept=".json,.png">
@@ -963,6 +965,81 @@
 
         // Admin functions
         function setupAdminControls() {
+            function setupAdminControls() {
+    // Export Canvas
+    document.getElementById('export-canvas').addEventListener('click', async () => {
+        try {
+            const pixelsRef = ref(db, 'pixels');
+            const snapshot = await get(pixelsRef);
+            const pixelData = snapshot.val() || {};
+            
+            // Create downloadable JSON
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `astro-places-save-${timestamp}.json`;
+            const jsonStr = JSON.stringify(pixelData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create temporary link
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showNotification('Save file exported successfully');
+        } catch (error) {
+            console.error('Export failed:', error);
+            showNotification('Export failed: ' + error.message);
+        }
+    });
+
+    // Import Canvas
+    document.getElementById('import-canvas').addEventListener('click', () => {
+        document.getElementById('canvas-file').click();
+    });
+
+    document.getElementById('canvas-file').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const canvasData = JSON.parse(event.target.result);
+                
+                // Validate format
+                if (typeof canvasData !== 'object') {
+                    throw new Error('Invalid save file format');
+                }
+
+                // Clear existing canvas
+                const pixelsRef = ref(db, 'pixels');
+                await remove(pixelsRef);
+
+                // Batch update
+                const updates = {};
+                for (const [key, value] of Object.entries(canvasData)) {
+                    if (!/^\d+,\d+$/.test(key)) {
+                        throw new Error('Invalid coordinate format');
+                    }
+                    updates[`pixels/${key}`] = value;
+                }
+
+                await update(ref(db), updates);
+                showNotification('Save file imported successfully!');
+            } catch (error) {
+                console.error('Import failed:', error);
+                showNotification('Import failed: ' + error.message);
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    // Rest of existing admin controls...
+
             // Clear canvas
             document.getElementById('clear-canvas').addEventListener('click', () => {
                 if (confirm('Are you sure you want to clear the entire canvas?')) {
