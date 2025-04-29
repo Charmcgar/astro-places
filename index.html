@@ -478,6 +478,10 @@
                     <option value="png">PNG</option>
                 </select>
             </div>
+            <div class="admin-controls">
+                <button id="resize-canvas" class="admin-button">Resize Canvas</button>
+                <input type="number" id="new-canvas-size" class="admin-input" placeholder="New size (50-500)" min="50" max="500">
+            </div>
             <div class="banned-users">
                 <div class="admin-title">Banned Users</div>
                 <div id="banned-users-list"></div>
@@ -536,7 +540,7 @@
         // Canvas setup
         const canvas = document.getElementById('place-canvas');
         const ctx = canvas.getContext('2d');
-        const canvasSize = 300; // 100x100 pixel grid
+        let canvasSize = 100; // Default size (will be updated from Firebase)
         const pixelSize = 3; // Size of each pixel for rendering
         
         // Current view properties
@@ -550,7 +554,7 @@
         // User interaction
         let selectedColor = '#000000';
         let lastPlacedTime = 0;
-        const cooldownTime = 3000; // 3 seconds cooldown (shortened for demo purposes)
+        const cooldownTime = 3000; // 3 seconds cooldown
         const userId = generateUserId();
         let userPresenceRef = null;
         let myPixelCount = 0;
@@ -563,7 +567,7 @@
         // Hover preview
         const hoverPixel = document.getElementById('hover-pixel');
         
-        // Available colors with official r/place 2022 palette (now with # prefix)
+        // Available colors with official r/place 2022 palette (with # prefix)
         const colors = [
             '#FFFFFF', '#D4D7D9', '#898D90', '#515252', '#000000',
             '#D80000', '#FF4500', '#FFA800', '#FFD635', '#00A368',
@@ -616,9 +620,6 @@
             drawCanvas();
         }
 
-        // Initialize canvas size
-        resizeCanvas();
-
         // Draw the canvas based on Firebase data
         function drawCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -638,31 +639,34 @@
                 
                 // Draw pixels
                 totalPixelCount = 0;
-                myPixelCount = 0; // Reset count before recounting
+                myPixelCount = 0;
                 for (const key in pixelData) {
                     const [x, y] = key.split(',');
-                    const pixelValue = pixelData[key];
-                    // Support both formats: string color or object with color property
-                    let pixelColor;
-                    if (typeof pixelValue === 'string') {
-                        pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
-                    } else if (pixelValue && pixelValue.color) {
-                        pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
-                    } else {
-                        pixelColor = '#FFFFFF';
-                    }
+                    const xInt = parseInt(x);
+                    const yInt = parseInt(y);
                     
-                    ctx.fillStyle = pixelColor;
-                    ctx.fillRect(parseInt(x), parseInt(y), 1, 1);
-                    totalPixelCount++;
-                    
-                    // Count my pixels
-                    if (typeof pixelValue === 'object' && pixelValue && pixelValue.userId === userId) {
-                        myPixelCount++;
+                    // Only draw pixels that fit within current canvas size
+                    if (xInt >= 0 && xInt < canvasSize && yInt >= 0 && yInt < canvasSize) {
+                        const pixelValue = pixelData[key];
+                        let pixelColor;
+                        if (typeof pixelValue === 'string') {
+                            pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
+                        } else if (pixelValue && pixelValue.color) {
+                            pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
+                        } else {
+                            pixelColor = '#FFFFFF';
+                        }
+                        
+                        ctx.fillStyle = pixelColor;
+                        ctx.fillRect(xInt, yInt, 1, 1);
+                        totalPixelCount++;
+                        
+                        if (typeof pixelValue === 'object' && pixelValue && pixelValue.userId === userId) {
+                            myPixelCount++;
+                        }
                     }
                 }
                 
-                // Update pixel counts
                 document.getElementById('pixel-count').textContent = totalPixelCount;
                 document.getElementById('your-pixels').textContent = myPixelCount;
             });
@@ -698,13 +702,10 @@
                 return;
             }
             
-            // Ensure color has # prefix
-            const formattedColor = selectedColor.startsWith('#') ? selectedColor : `#${selectedColor}`;
-            
             // Place the pixel in Firebase
             const pixelRef = ref(db, `pixels/${x},${y}`);
             set(pixelRef, {
-                color: formattedColor,
+                color: selectedColor,
                 userId: userId,
                 timestamp: Date.now()
             })
@@ -713,7 +714,7 @@
                 updateCooldown();
                 
                 // Add to history
-                addToHistory(x, y, formattedColor);
+                addToHistory(x, y, selectedColor);
                 
                 // Show notification
                 showNotification('Pixel placed successfully!');
@@ -786,15 +787,12 @@
 
         // Add to history log
         function addToHistory(x, y, color) {
-            // Ensure color has # prefix
-            const formattedColor = color.startsWith('#') ? color : `#${color}`;
-            
             // Add to Firebase history
             const historyRef = ref(db, 'history');
             push(historyRef, {
                 x: x,
                 y: y,
-                color: formattedColor,
+                color: color,
                 userId: userId,
                 timestamp: Date.now()
             });
@@ -820,9 +818,7 @@
                     
                     const colorSwatch = document.createElement('span');
                     colorSwatch.className = 'history-color';
-                    // Ensure color has # prefix
-                    const displayColor = entry.color.startsWith('#') ? entry.color : `#${entry.color}`;
-                    colorSwatch.style.backgroundColor = displayColor;
+                    colorSwatch.style.backgroundColor = entry.color;
                     
                     historyItem.appendChild(colorSwatch);
                     historyItem.appendChild(document.createTextNode(`(${entry.x}, ${entry.y})`));
@@ -937,8 +933,7 @@
                     let frameCount = 0;
                     for (const entry of entries) {
                         const key = `${entry.x},${entry.y}`;
-                        // Ensure color has # prefix
-                        currentCanvasState[key] = entry.color.startsWith('#') ? entry.color : `#${entry.color}`;
+                        currentCanvasState[key] = entry.color;
                         
                         // Add a frame every 10 pixels or at the end
                         if (frameCount % 10 === 0 || frameCount === entries.length - 1) {
@@ -1073,9 +1068,8 @@
                                     // Import new pixels
                                     const updates = {};
                                     for (const key in canvasData) {
-                                        const color = canvasData[key];
                                         updates[`pixels/${key}`] = {
-                                            color: color.startsWith('#') ? color : `#${color}`,
+                                            color: canvasData[key],
                                             userId: 'system',
                                             timestamp: Date.now()
                                         };
@@ -1160,6 +1154,61 @@
                 }
             });
             
+            // Resize canvas
+            document.getElementById('resize-canvas').addEventListener('click', () => {
+                const newSizeInput = document.getElementById('new-canvas-size');
+                const newSize = parseInt(newSizeInput.value);
+                
+                if (isNaN(newSize)) {
+                    showNotification('Please enter a valid number for canvas size');
+                    return;
+                }
+                
+                if (newSize < 50 || newSize > 500) {
+                    showNotification('Canvas size must be between 50 and 500');
+                    return;
+                }
+                
+                if (confirm(`Are you sure you want to resize the canvas to ${newSize}x${newSize}? Existing pixels outside this range will be lost.`)) {
+                    // Get current pixels
+                    const pixelsRef = ref(db, 'pixels');
+                    get(pixelsRef).then((snapshot) => {
+                        const pixelData = snapshot.val() || {};
+                        const updates = {};
+                        
+                        // Filter pixels to only keep those within new bounds
+                        for (const key in pixelData) {
+                            const [x, y] = key.split(',').map(Number);
+                            if (x < newSize && y < newSize) {
+                                updates[key] = pixelData[key];
+                            }
+                        }
+                        
+                        // Update canvas size in Firebase
+                        const configRef = ref(db, 'config/canvasSize');
+                        set(configRef, newSize)
+                            .then(() => {
+                                // Update local canvas size
+                                canvasSize = newSize;
+                                
+                                // Update pixels with new bounds
+                                set(pixelsRef, updates)
+                                    .then(() => {
+                                        resizeCanvas();
+                                        showNotification(`Canvas resized to ${newSize}x${newSize}`);
+                                        newSizeInput.value = '';
+                                    })
+                                    .catch(error => {
+                                        showNotification('Error updating pixels: ' + error.message);
+                                    });
+                            })
+                            .catch(error => {
+                                showNotification('Error updating canvas size: ' + error.message);
+                            });
+                    });
+                }
+            });
+            
             function exportCanvasAsJSON() {
                 const pixelsRef = ref(db, 'pixels');
                 get(pixelsRef).then((snapshot) => {
@@ -1174,8 +1223,7 @@
                     // Simplify the data structure for export
                     for (const key in pixelData) {
                         // Support both formats: string color or object with color property
-                        const color = typeof pixelData[key] === 'string' ? pixelData[key] : pixelData[key].color;
-                        exportData[key] = color.startsWith('#') ? color : `#${color}`;
+                        exportData[key] = typeof pixelData[key] === 'string' ? pixelData[key] : pixelData[key].color;
                     }
                     
                     // Create download link
@@ -1219,14 +1267,7 @@
                         const [x, y] = key.split(',');
                         const pixelValue = pixelData[key];
                         // Support both formats: string color or object with color property
-                        let pixelColor;
-                        if (typeof pixelValue === 'string') {
-                            pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
-                        } else if (pixelValue && pixelValue.color) {
-                            pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
-                        } else {
-                            pixelColor = '#FFFFFF';
-                        }
+                        const pixelColor = typeof pixelValue === 'string' ? pixelValue : (pixelValue && pixelValue.color ? pixelValue.color : '#FFFFFF');
                         
                         tempCtx.fillStyle = pixelColor;
                         tempCtx.fillRect(parseInt(x), parseInt(y), 1, 1);
@@ -1436,15 +1477,22 @@
 
         // Initialize the application
         function init() {
-            drawCanvas();
-            setupHistoryDisplay();
-            setupUserPresence();
-            setupTimelapseView();
-            setupAdminLogin();
-            
-            // Hide admin panel by default
-            document.getElementById('admin-panel').style.display = 'none';
-            document.querySelector('.logo-text').textContent = 'place';
+            // Load canvas size from Firebase
+            const configRef = ref(db, 'config/canvasSize');
+            get(configRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    canvasSize = snapshot.val();
+                }
+                resizeCanvas();
+                drawCanvas();
+                setupHistoryDisplay();
+                setupUserPresence();
+                setupTimelapseView();
+                setupAdminLogin();
+                
+                document.getElementById('admin-panel').style.display = 'none';
+                document.querySelector('.logo-text').textContent = 'place';
+            });
         }
 
         // Start the app
