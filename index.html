@@ -73,18 +73,6 @@
             border: 1px solid white;
             box-shadow: 0 0 0 1px black;
             display: none;
-            z-index: 10;
-        }
-        .pixel-info {
-            position: absolute;
-            background-color: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px;
-            border-radius: 3px;
-            font-size: 12px;
-            pointer-events: none;
-            z-index: 20;
-            display: none;
         }
         .color-picker {
             display: flex;
@@ -429,13 +417,11 @@
         <div class="control-group">
             <div id="cooldown">Ready to place a pixel!</div>
             <div id="coordinates">Hover over canvas to see coordinates</div>
-            <div id="canvas-dimensions">Canvas: 100x100</div>
         </div>
         
         <div id="canvas-container">
             <canvas id="place-canvas" width="100" height="100"></canvas>
             <div class="hover-pixel" id="hover-pixel"></div>
-            <div class="pixel-info" id="pixel-info"></div>
         </div>
         
         <div class="color-picker" id="color-picker"></div>
@@ -448,11 +434,6 @@
                     <button id="zoom-in">+</button>
                 </div>
                 <button id="timelapse-button">View Timelapse</button>
-            </div>
-            <div class="control-group">
-                <span>Pixel Size:</span>
-                <input type="range" id="pixel-size-slider" min="1" max="10" value="3">
-                <span id="pixel-size-value">3px</span>
             </div>
         </div>
         
@@ -499,10 +480,7 @@
             </div>
             <div class="admin-controls">
                 <button id="resize-canvas" class="admin-button">Resize Canvas</button>
-                <div style="display: flex; gap: 10px; width: 100%;">
-                    <input type="number" id="new-canvas-width" class="admin-input" placeholder="Width (50-500)" min="50" max="500">
-                    <input type="number" id="new-canvas-height" class="admin-input" placeholder="Height (50-500)" min="50" max="500">
-                </div>
+                <input type="number" id="new-canvas-size" class="admin-input" placeholder="New size (50-500)" min="50" max="500">
             </div>
             <div class="banned-users">
                 <div class="admin-title">Banned Users</div>
@@ -562,9 +540,8 @@
         // Canvas setup
         const canvas = document.getElementById('place-canvas');
         const ctx = canvas.getContext('2d');
-        let canvasWidth = 100; // Default width
-        let canvasHeight = 100; // Default height
-        let pixelSize = 3; // Size of each pixel for rendering (now adjustable)
+        let canvasSize = 100; // Default size (will be updated from Firebase)
+        const pixelSize = 3; // Size of each pixel for rendering
         
         // Current view properties
         let zoom = 1;
@@ -589,7 +566,6 @@
         
         // Hover preview
         const hoverPixel = document.getElementById('hover-pixel');
-        const pixelInfo = document.getElementById('pixel-info');
         
         // Available colors with official r/place 2022 palette (with # prefix)
         const colors = [
@@ -629,19 +605,16 @@
 
         // Resize canvas element based on zoom level
         function resizeCanvas() {
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-            canvas.style.width = (canvasWidth * pixelSize * zoom) + 'px';
-            canvas.style.height = (canvasHeight * pixelSize * zoom) + 'px';
-            document.getElementById('canvas-container').style.width = (canvasWidth * pixelSize * zoom) + 'px';
-            document.getElementById('canvas-container').style.height = (canvasHeight * pixelSize * zoom) + 'px';
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+            canvas.style.width = (canvasSize * pixelSize * zoom) + 'px';
+            canvas.style.height = (canvasSize * pixelSize * zoom) + 'px';
+            document.getElementById('canvas-container').style.width = (canvasSize * pixelSize * zoom) + 'px';
+            document.getElementById('canvas-container').style.height = (canvasSize * pixelSize * zoom) + 'px';
             
             // Update hover pixel size
             hoverPixel.style.width = (pixelSize * zoom) + 'px';
             hoverPixel.style.height = (pixelSize * zoom) + 'px';
-            
-            // Update canvas dimensions display
-            document.getElementById('canvas-dimensions').textContent = `Canvas: ${canvasWidth}x${canvasHeight}`;
             
             // Redraw canvas
             drawCanvas();
@@ -673,7 +646,7 @@
                     const yInt = parseInt(y);
                     
                     // Only draw pixels that fit within current canvas size
-                    if (xInt >= 0 && xInt < canvasWidth && yInt >= 0 && yInt < canvasHeight) {
+                    if (xInt >= 0 && xInt < canvasSize && yInt >= 0 && yInt < canvasSize) {
                         const pixelValue = pixelData[key];
                         let pixelColor;
                         if (typeof pixelValue === 'string') {
@@ -725,7 +698,7 @@
             }
             
             // Ensure coordinates are within bounds
-            if (x < 0 || x >= canvasWidth || y < 0 || y >= canvasHeight) {
+            if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
                 return;
             }
             
@@ -849,10 +822,6 @@
                     
                     historyItem.appendChild(colorSwatch);
                     historyItem.appendChild(document.createTextNode(`(${entry.x}, ${entry.y})`));
-                    
-                    if (isAdmin) {
-                        historyItem.appendChild(document.createTextNode(` by ${entry.userId}`));
-                    }
                     
                     historyContainer.appendChild(historyItem);
                 });
@@ -1123,22 +1092,22 @@
                         img.onload = () => {
                             // Create temporary canvas to process image
                             const tempCanvas = document.createElement('canvas');
-                            tempCanvas.width = canvasWidth;
-                            tempCanvas.height = canvasHeight;
+                            tempCanvas.width = canvasSize;
+                            tempCanvas.height = canvasSize;
                             const tempCtx = tempCanvas.getContext('2d');
                             
                             // Draw image to temp canvas (scaled to fit)
-                            tempCtx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                            tempCtx.drawImage(img, 0, 0, canvasSize, canvasSize);
                             
                             // Get pixel data
-                            const imageData = tempCtx.getImageData(0, 0, canvasWidth, canvasHeight);
+                            const imageData = tempCtx.getImageData(0, 0, canvasSize, canvasSize);
                             const data = imageData.data;
                             
                             // Convert to our color palette
                             const updates = {};
-                            for (let y = 0; y < canvasHeight; y++) {
-                                for (let x = 0; x < canvasWidth; x++) {
-                                    const index = (y * canvasWidth + x) * 4;
+                            for (let y = 0; y < canvasSize; y++) {
+                                for (let x = 0; x < canvasSize; x++) {
+                                    const index = (y * canvasSize + x) * 4;
                                     const r = data[index];
                                     const g = data[index + 1];
                                     const b = data[index + 2];
@@ -1187,22 +1156,20 @@
             
             // Resize canvas
             document.getElementById('resize-canvas').addEventListener('click', () => {
-                const newWidthInput = document.getElementById('new-canvas-width');
-                const newHeightInput = document.getElementById('new-canvas-height');
-                const newWidth = parseInt(newWidthInput.value);
-                const newHeight = parseInt(newHeightInput.value);
+                const newSizeInput = document.getElementById('new-canvas-size');
+                const newSize = parseInt(newSizeInput.value);
                 
-                if (isNaN(newWidth) || isNaN(newHeight)) {
-                    showNotification('Please enter valid numbers for width and height');
+                if (isNaN(newSize)) {
+                    showNotification('Please enter a valid number for canvas size');
                     return;
                 }
                 
-                if (newWidth < 50 || newWidth > 500 || newHeight < 50 || newHeight > 500) {
-                    showNotification('Canvas dimensions must be between 50 and 500');
+                if (newSize < 50 || newSize > 500) {
+                    showNotification('Canvas size must be between 50 and 500');
                     return;
                 }
                 
-                if (confirm(`Are you sure you want to resize the canvas to ${newWidth}x${newHeight}? Existing pixels outside this range will be lost.`)) {
+                if (confirm(`Are you sure you want to resize the canvas to ${newSize}x${newSize}? Existing pixels outside this range will be lost.`)) {
                     // Get current pixels
                     const pixelsRef = ref(db, 'pixels');
                     get(pixelsRef).then((snapshot) => {
@@ -1212,37 +1179,32 @@
                         // Filter pixels to only keep those within new bounds
                         for (const key in pixelData) {
                             const [x, y] = key.split(',').map(Number);
-                            if (x < newWidth && y < newHeight) {
+                            if (x < newSize && y < newSize) {
                                 updates[key] = pixelData[key];
                             }
                         }
                         
                         // Update canvas size in Firebase
-                        const configRef = ref(db, 'config');
-                        set(configRef, {
-                            canvasWidth: newWidth,
-                            canvasHeight: newHeight
-                        })
-                        .then(() => {
-                            // Update local canvas size
-                            canvasWidth = newWidth;
-                            canvasHeight = newHeight;
-                            
-                            // Update pixels with new bounds
-                            set(pixelsRef, updates)
-                                .then(() => {
-                                    resizeCanvas();
-                                    showNotification(`Canvas resized to ${newWidth}x${newHeight}`);
-                                    newWidthInput.value = '';
-                                    newHeightInput.value = '';
-                                })
-                                .catch(error => {
-                                    showNotification('Error updating pixels: ' + error.message);
-                                });
-                        })
-                        .catch(error => {
-                            showNotification('Error updating canvas size: ' + error.message);
-                        });
+                        const configRef = ref(db, 'config/canvasSize');
+                        set(configRef, newSize)
+                            .then(() => {
+                                // Update local canvas size
+                                canvasSize = newSize;
+                                
+                                // Update pixels with new bounds
+                                set(pixelsRef, updates)
+                                    .then(() => {
+                                        resizeCanvas();
+                                        showNotification(`Canvas resized to ${newSize}x${newSize}`);
+                                        newSizeInput.value = '';
+                                    })
+                                    .catch(error => {
+                                        showNotification('Error updating pixels: ' + error.message);
+                                    });
+                            })
+                            .catch(error => {
+                                showNotification('Error updating canvas size: ' + error.message);
+                            });
                     });
                 }
             });
@@ -1265,14 +1227,10 @@
                     }
                     
                     // Create download link
-                    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify({
-                        width: canvasWidth,
-                        height: canvasHeight,
-                        pixels: exportData
-                    }, null, 2));
+                    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
                     const downloadAnchor = document.createElement('a');
                     downloadAnchor.setAttribute('href', dataStr);
-                    downloadAnchor.setAttribute('download', `canvas_export_${canvasWidth}x${canvasHeight}_${new Date().toISOString().slice(0, 10)}.json`);
+                    downloadAnchor.setAttribute('download', 'canvas_export_' + new Date().toISOString().slice(0, 10) + '.json');
                     document.body.appendChild(downloadAnchor);
                     downloadAnchor.click();
                     document.body.removeChild(downloadAnchor);
@@ -1286,8 +1244,8 @@
             function exportCanvasAsPNG() {
                 // Create a temporary canvas with the original size
                 const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvasWidth;
-                tempCanvas.height = canvasHeight;
+                tempCanvas.width = canvasSize;
+                tempCanvas.height = canvasSize;
                 const tempCtx = tempCanvas.getContext('2d');
                 
                 // Fill with white background
@@ -1320,7 +1278,7 @@
                         const url = URL.createObjectURL(blob);
                         const downloadAnchor = document.createElement('a');
                         downloadAnchor.setAttribute('href', url);
-                        downloadAnchor.setAttribute('download', `canvas_export_${canvasWidth}x${canvasHeight}_${new Date().toISOString().slice(0, 10)}.png`);
+                        downloadAnchor.setAttribute('download', 'canvas_export_' + new Date().toISOString().slice(0, 10) + '.png');
                         document.body.appendChild(downloadAnchor);
                         downloadAnchor.click();
                         document.body.removeChild(downloadAnchor);
@@ -1438,72 +1396,6 @@
             });
         }
 
-        // Setup pixel size control
-        function setupPixelSizeControl() {
-            const pixelSizeSlider = document.getElementById('pixel-size-slider');
-            const pixelSizeValue = document.getElementById('pixel-size-value');
-            
-            pixelSizeSlider.addEventListener('input', () => {
-                pixelSize = parseInt(pixelSizeSlider.value);
-                pixelSizeValue.textContent = `${pixelSize}px`;
-                resizeCanvas();
-            });
-        }
-
-        // Handle pixel hover info
-        function setupPixelHoverInfo() {
-            canvas.addEventListener('mousemove', (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                
-                const x = Math.floor((e.clientX - rect.left) * scaleX);
-                const y = Math.floor((e.clientY - rect.top) * scaleY);
-                
-                // Update coordinates display
-                document.getElementById('coordinates').textContent = `(${x}, ${y})`;
-                
-                // Show hover preview
-                if (x >= 0 && x < canvasWidth && y >= 0 && y < canvasHeight) {
-                    hoverPixel.style.display = 'block';
-                    hoverPixel.style.left = (x * pixelSize * zoom) + 'px';
-                    hoverPixel.style.top = (y * pixelSize * zoom) + 'px';
-                    hoverPixel.style.backgroundColor = selectedColor;
-                    
-                    // Show pixel info for admins
-                    if (isAdmin) {
-                        const pixelsRef = ref(db, `pixels/${x},${y}`);
-                        get(pixelsRef).then((snapshot) => {
-                            if (snapshot.exists()) {
-                                const pixelData = snapshot.val();
-                                const userId = typeof pixelData === 'object' ? pixelData.userId : 'unknown';
-                                const color = typeof pixelData === 'string' ? pixelData : (pixelData.color || '#FFFFFF');
-                                
-                                pixelInfo.style.display = 'block';
-                                pixelInfo.style.left = (e.clientX + 10) + 'px';
-                                pixelInfo.style.top = (e.clientY + 10) + 'px';
-                                pixelInfo.innerHTML = `
-                                    <div>Color: <span style="color:${color}">${color}</span></div>
-                                    <div>User: ${userId}</div>
-                                    <div>Position: (${x}, ${y})</div>
-                                `;
-                            } else {
-                                pixelInfo.style.display = 'none';
-                            }
-                        });
-                    }
-                } else {
-                    hoverPixel.style.display = 'none';
-                    pixelInfo.style.display = 'none';
-                }
-            });
-            
-            canvas.addEventListener('mouseout', () => {
-                hoverPixel.style.display = 'none';
-                pixelInfo.style.display = 'none';
-            });
-        }
-
         // Canvas interaction events
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
@@ -1514,6 +1406,33 @@
             const y = Math.floor((e.clientY - rect.top) * scaleY);
             
             placePixel(x, y);
+        });
+
+        // Hover effect to show where pixel will be placed
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const y = Math.floor((e.clientY - rect.top) * scaleY);
+            
+            // Update coordinates display
+            document.getElementById('coordinates').textContent = `(${x}, ${y})`;
+            
+            // Show hover preview
+            if (x >= 0 && x < canvasSize && y >= 0 && y < canvasSize) {
+                hoverPixel.style.display = 'block';
+                hoverPixel.style.left = (x * pixelSize * zoom) + 'px';
+                hoverPixel.style.top = (y * pixelSize * zoom) + 'px';
+                hoverPixel.style.backgroundColor = selectedColor;
+            } else {
+                hoverPixel.style.display = 'none';
+            }
+        });
+        
+        canvas.addEventListener('mouseout', () => {
+            hoverPixel.style.display = 'none';
         });
 
         // Zoom controls
@@ -1559,12 +1478,10 @@
         // Initialize the application
         function init() {
             // Load canvas size from Firebase
-            const configRef = ref(db, 'config');
+            const configRef = ref(db, 'config/canvasSize');
             get(configRef).then((snapshot) => {
                 if (snapshot.exists()) {
-                    const config = snapshot.val();
-                    canvasWidth = config.canvasWidth || 100;
-                    canvasHeight = config.canvasHeight || 100;
+                    canvasSize = snapshot.val();
                 }
                 resizeCanvas();
                 drawCanvas();
@@ -1572,8 +1489,6 @@
                 setupUserPresence();
                 setupTimelapseView();
                 setupAdminLogin();
-                setupPixelSizeControl();
-                setupPixelHoverInfo();
                 
                 document.getElementById('admin-panel').style.display = 'none';
                 document.querySelector('.logo-text').textContent = 'place';
