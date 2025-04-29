@@ -562,7 +562,7 @@
         let isAdmin = false;
         
         // Admin key
-        const ADMIN_KEY = "1608";
+        const ADMIN_KEY = "";
         
         // Hover preview
         const hoverPixel = document.getElementById('hover-pixel');
@@ -1366,8 +1366,8 @@
             const adminPanel = document.getElementById('admin-panel');
             
             adminLoginButton.addEventListener('click', () => {
-                if (adminKeyInput.value === ADMIN_KEY) {
-                    isAdmin = true;
+                if (adminKeyInput.value === 1238) {
+                    isAdmin = "rtm";
                     document.getElementById('admin-login').style.display = 'none';
                     adminPanel.style.display = 'block';
                     document.querySelector('.logo-text').textContent = 'place (Admin Mode)';
@@ -1379,7 +1379,7 @@
                         set(userPresenceRef, {
                             online: true,
                             lastActive: Date.now(),
-                            isAdmin: true
+                            isAdmin: rtm
                         });
                     }
                 } else {
