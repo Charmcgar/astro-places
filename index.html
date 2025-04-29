@@ -561,8 +561,50 @@
         let totalPixelCount = 0;
         let isAdmin = false;
         
-        // Admin key
-        const ADMIN_KEY = "no no no carter pls dont hack me!";
+       // Replace the admin login system with Firebase Auth
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+// Initialize auth
+const auth = getAuth();
+
+// Modify admin login function
+function setupAdminLogin() {
+    const adminLoginButton = document.getElementById('admin-login-button');
+    const adminKeyInput = document.getElementById('admin-key');
+    const adminPanel = document.getElementById('admin-panel');
+    
+    adminLoginButton.addEventListener('click', () => {
+        // Replace with actual admin email and get password from input
+        signInWithEmailAndPassword(auth, "admin@example.com", adminKeyInput.value)
+            .then((userCredential) => {
+                // Check if user is admin (you'll need to set this in Firebase)
+                const userRef = ref(db, `users/${userCredential.user.uid}`);
+                get(userRef).then((snapshot) => {
+                    if (snapshot.exists() && snapshot.val().isAdmin) {
+                        isAdmin = true;
+                        document.getElementById('admin-login').style.display = 'none';
+                        adminPanel.style.display = 'block';
+                        showNotification('Admin access granted');
+                        
+                        // Update user presence
+                        if (userPresenceRef) {
+                            set(userPresenceRef, {
+                                online: true,
+                                lastActive: Date.now(),
+                                isAdmin: true
+                            });
+                        }
+                    } else {
+                        showNotification('You are not an admin');
+                        }
+                    });
+                })
+                .catch((error) => {
+                    showNotification('Login failed: ' + error.message);
+                    adminKeyInput.value = '';
+                });
+    });
+}
         
         // Hover preview
         const hoverPixel = document.getElementById('hover-pixel');
