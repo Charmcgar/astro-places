@@ -361,8 +361,7 @@
     // Import Firebase modules
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getDatabase, ref, onValue, set, get, push, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-    import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js"; // Add App Check
-
+   
     const firebaseConfig = {
         apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
         authDomain: "astro-places-1aec2.firebaseapp.com",
@@ -378,11 +377,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Initialize App Check with reCAPTCHA v3
-    const appCheck = initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider('YOUR_RECAPTCHA_SITE_KEY'),
-        isTokenAutoRefreshEnabled: true, // Enable auto-refresh of the token
-    });
+
 
         // Canvas setup
         const canvas = document.getElementById('place-canvas');
@@ -401,7 +396,7 @@
         // User interaction
         let selectedColor = '#000000';
         let lastPlacedTime = 0;
-        const cooldownTime = 0; // 3 seconds cooldown
+        const cooldownTime = 1000; // 3 seconds cooldown
         const userId = generateUserId();
         let userPresenceRef = null;
         let myPixelCount = 0;
@@ -515,43 +510,62 @@
             });
         }
 
-        // Handle user placing a pixel
-        async function placePixel(x, y) {
-            const now = Date.now();
-            
-            // Check cooldown
-            if (now - lastPlacedTime < cooldownTime) {
-                showNotification('Please wait for the cooldown to expire');
-                return;
-            }
-            
-            // Ensure coordinates are within bounds
-            if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
-                return;
-            }
-            
-            // Place the pixel in Firebase
-            const pixelRef = ref(db, `pixels/${x},${y}`);
-            set(pixelRef, {
-                color: selectedColor,
-                userId: userId,
-                timestamp: Date.now()
-            })
+       async function placePixel(x, y) {
+    const now = Date.now();
+
+    // Check cooldown
+    if (now - lastPlacedTime < cooldownTime) {
+        showNotification('Please wait for the cooldown to expire');
+        return;
+    }
+
+    // Ensure coordinates are within bounds
+    if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
+        return;
+    }
+
+    const pixelRef = ref(db, `pixels/${x},${y}`);
+
+    if (selectedColor === '#FFFFFF') {
+        // White color will delete the pixel
+        remove(pixelRef)
             .then(() => {
                 lastPlacedTime = now;
                 updateCooldown();
-                
-                // Add to history
-                addToHistory(x, y, selectedColor);
-                
+
+                // Add to history (optional, if you want to log erases as well)
+                addToHistory(x, y, 'erased');
+
                 // Show notification
-                showNotification('Pixel placed successfully!');
+                showNotification('Pixel erased successfully!');
             })
             .catch(error => {
-                console.error("Error placing pixel: ", error);
-                showNotification('Error placing pixel. Try again.');
+                console.error("Error erasing pixel: ", error);
+                showNotification('Error erasing pixel. Try again.');
             });
-        }
+    } else {
+        // Place the pixel in Firebase
+        set(pixelRef, {
+            color: selectedColor,
+            userId: userId,
+            timestamp: Date.now()
+        })
+        .then(() => {
+            lastPlacedTime = now;
+            updateCooldown();
+
+            // Add to history
+            addToHistory(x, y, selectedColor);
+
+            // Show notification
+            showNotification('Pixel placed successfully!');
+        })
+        .catch(error => {
+            console.error("Error placing pixel: ", error);
+            showNotification('Error placing pixel. Try again.');
+        });
+    }
+}
 
         // Update cooldown timer with circle animation
         function updateCooldown() {
