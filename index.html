@@ -897,9 +897,14 @@
             const dx = e.clientX - lastMouseX;
             const dy = e.clientY - lastMouseY;
             
-            // Update offset (but we're not implementing panning in this simplified version)
+            //offsets for panning
+            offsetX += dx;
+            offsetY += dy;
+
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
+
+            drawCanvas();
         });
         
         window.addEventListener('mouseup', () => {
