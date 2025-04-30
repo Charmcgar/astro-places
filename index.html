@@ -253,7 +253,7 @@
                 margin-bottom: 10px;
             }
         }
-           .admin-login {
+        .admin-login {
             width: 100%;
             margin-top: 1rem;
             padding: 15px;
@@ -357,27 +357,57 @@
     
     <div id="notification"></div>
 
-<script type="module">
-    // Import Firebase modules
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getDatabase, ref, onValue, set, get, push, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-   
-    const firebaseConfig = {
-        apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
-        authDomain: "astro-places-1aec2.firebaseapp.com",
-        projectId: "astro-places-1aec2",
-        storageBucket: "astro-places-1aec2.appspot.com",
-        messagingSenderId: "502500788903",
-        appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
-        measurementId: "G-6J7SM1KM05",
-        databaseURL: "https://astro-places-1aec2-default-rtdb.firebaseio.com"
-    };
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, get, push, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+       
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
+            authDomain: "astro-places-1aec2.firebaseapp.com",
+            projectId: "astro-places-1aec2",
+            storageBucket: "astro-places-1aec2.appspot.com",
+            messagingSenderId: "502500788903",
+            appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
+            measurementId: "G-6J7SM1KM05",
+            databaseURL: "https://astro-places-1aec2-default-rtdb.firebaseio.com"
+        };
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
+        // Utility functions
+        function throttle(func, limit) {
+            let lastFunc;
+            let lastRan;
+            return function() {
+                const context = this;
+                const args = arguments;
+                if (!lastRan) {
+                    func.apply(context, args);
+                    lastRan = Date.now();
+                } else {
+                    clearTimeout(lastFunc);
+                    lastFunc = setTimeout(function() {
+                        if ((Date.now() - lastRan) >= limit) {
+                            func.apply(context, args);
+                            lastRan = Date.now();
+                        }
+                    }, limit - (Date.now() - lastRan));
+                }
+            };
+        }
 
+        function debounce(func, wait) {
+            let timeout;
+            return function() {
+                const context = this;
+                const args = arguments;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), wait);
+            };
+        }
 
         // Canvas setup
         const canvas = document.getElementById('place-canvas');
@@ -405,7 +435,7 @@
         // Hover preview
         const hoverPixel = document.getElementById('hover-pixel');
         
-      
+        // Color palette
         const colors = [
             '#FFFFFF', '#D4D7D9', '#898D90', '#515252', '#000000',
             '#D80000', '#FF4500', '#FFA800', '#FFD635', '#00A368',
@@ -454,118 +484,140 @@
             hoverPixel.style.width = (pixelSize * zoom) + 'px';
             hoverPixel.style.height = (pixelSize * zoom) + 'px';
             
-            // Redraw canvas
+            // Mark canvas for redraw
+            canvas.needsRedraw = true;
             drawCanvas();
         }
 
-        // Draw the canvas based on Firebase data
+        // Optimized canvas drawing with buffering and requestAnimationFrame
         function drawCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Only redraw when necessary
+            if (!canvas.needsRedraw) return;
+            canvas.needsRedraw = false;
             
-            // Draw grid background
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Create buffer if it doesn't exist
+            if (!canvas.buffer) {
+                canvas.buffer = document.createElement('canvas');
+                canvas.buffer.width = canvas.width;
+                canvas.buffer.height = canvas.height;
+                canvas.bufferCtx = canvas.buffer.getContext('2d');
+                canvas.backgroundDrawn = false;
+            }
+            
+            // Draw grid background only once
+            if (!canvas.backgroundDrawn) {
+                canvas.bufferCtx.fillStyle = '#FFFFFF';
+                canvas.bufferCtx.fillRect(0, 0, canvas.width, canvas.height);
+                canvas.backgroundDrawn = true;
+            }
             
             // Get pixels from Firebase
             const pixelsRef = ref(db, 'pixels');
             onValue(pixelsRef, (snapshot) => {
                 const pixelData = snapshot.val() || {};
                 
-                // Clear canvas with white
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw pixels
-                totalPixelCount = 0;
-                myPixelCount = 0;
-                for (const key in pixelData) {
-                    const [x, y] = key.split(',');
-                    const xInt = parseInt(x);
-                    const yInt = parseInt(y);
+                requestAnimationFrame(() => {
+                    // Clear only the buffer
+                    canvas.bufferCtx.clearRect(0, 0, canvas.width, canvas.height);
                     
-                    // Only draw pixels that fit within current canvas size
-                    if (xInt >= 0 && xInt < canvasSize && yInt >= 0 && yInt < canvasSize) {
-                        const pixelValue = pixelData[key];
-                        let pixelColor;
-                        if (typeof pixelValue === 'string') {
-                            pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
-                        } else if (pixelValue && pixelValue.color) {
-                            pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
-                        } else {
-                            pixelColor = '#FFFFFF';
-                        }
+                    // Draw white background
+                    canvas.bufferCtx.fillStyle = '#FFFFFF';
+                    canvas.bufferCtx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    totalPixelCount = 0;
+                    myPixelCount = 0;
+                    
+                    // Batch pixel updates
+                    for (const key in pixelData) {
+                        const [x, y] = key.split(',');
+                        const xInt = parseInt(x);
+                        const yInt = parseInt(y);
                         
-                        ctx.fillStyle = pixelColor;
-                        ctx.fillRect(xInt, yInt, 1, 1);
-                        totalPixelCount++;
-                        
-                        if (typeof pixelValue === 'object' && pixelValue && pixelValue.userId === userId) {
-                            myPixelCount++;
+                        if (xInt >= 0 && xInt < canvasSize && yInt >= 0 && yInt < canvasSize) {
+                            const pixelValue = pixelData[key];
+                            let pixelColor;
+                            
+                            if (typeof pixelValue === 'string') {
+                                pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
+                            } else if (pixelValue?.color) {
+                                pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
+                            } else {
+                                pixelColor = '#FFFFFF';
+                            }
+                            
+                            canvas.bufferCtx.fillStyle = pixelColor;
+                            canvas.bufferCtx.fillRect(xInt, yInt, 1, 1);
+                            totalPixelCount++;
+                            
+                            if (typeof pixelValue === 'object' && pixelValue?.userId === userId) {
+                                myPixelCount++;
+                            }
                         }
                     }
-                }
-                
-                document.getElementById('pixel-count').textContent = totalPixelCount;
-                document.getElementById('your-pixels').textContent = myPixelCount;
+                    
+                    // Draw the buffer to the main canvas in one operation
+                    ctx.drawImage(canvas.buffer, 0, 0);
+                    
+                    // Update counters
+                    document.getElementById('pixel-count').textContent = totalPixelCount;
+                    document.getElementById('your-pixels').textContent = myPixelCount;
+                });
+            }, {
+                // Only retrieve the data once unless it changes
+                onlyOnce: false
             });
         }
 
-       async function placePixel(x, y) {
-    const now = Date.now();
+        // Place pixel with cooldown and error handling
+        async function placePixel(x, y) {
+            const now = Date.now();
 
-    // Check cooldown
-    if (now - lastPlacedTime < cooldownTime) {
-        showNotification('Please wait for the cooldown to expire');
-        return;
-    }
+            // Check cooldown
+            if (now - lastPlacedTime < cooldownTime) {
+                showNotification('Please wait for the cooldown to expire');
+                return;
+            }
 
-    // Ensure coordinates are within bounds
-    if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
-        return;
-    }
+            // Ensure coordinates are within bounds
+            if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
+                return;
+            }
 
-    const pixelRef = ref(db, `pixels/${x},${y}`);
+            const pixelRef = ref(db, `pixels/${x},${y}`);
 
-    if (selectedColor === '#FFFFFF') {
-        // White color will delete the pixel
-        remove(pixelRef)
-            .then(() => {
-                lastPlacedTime = now;
-                updateCooldown();
-
-                // Add to history (optional, if you want to log erases as well)
-                addToHistory(x, y, 'erased');
-
-                // Show notification
-                showNotification('Pixel erased successfully!');
-            })
-            .catch(error => {
-                console.error("Error erasing pixel: ", error);
-                showNotification('Error erasing pixel. Try again.');
-            });
-    } else {
-        // Place the pixel in Firebase
-        set(pixelRef, {
-            color: selectedColor,
-            userId: userId,
-            timestamp: Date.now()
-        })
-        .then(() => {
-            lastPlacedTime = now;
-            updateCooldown();
-
-            // Add to history
-            addToHistory(x, y, selectedColor);
-
-            // Show notification
-            showNotification('Pixel placed successfully!');
-        })
-        .catch(error => {
-            console.error("Error placing pixel: ", error);
-            showNotification('Error placing pixel. Try again.');
-        });
-    }
-}
+            if (selectedColor === '#FFFFFF') {
+                // White color will delete the pixel
+                try {
+                    await remove(pixelRef);
+                    lastPlacedTime = now;
+                    updateCooldown();
+                    addToHistory(x, y, 'erased');
+                    showNotification('Pixel erased successfully!');
+                } catch (error) {
+                    console.error("Error erasing pixel: ", error);
+                    showNotification('Error erasing pixel. Try again.');
+                }
+            } else {
+                // Place the pixel in Firebase
+                try {
+                    await set(pixelRef, {
+                        color: selectedColor,
+                        userId: userId,
+                        timestamp: Date.now()
+                    });
+                    lastPlacedTime = now;
+                    updateCooldown();
+                    addToHistory(x, y, selectedColor);
+                    showNotification('Pixel placed successfully!');
+                } catch (error) {
+                    console.error("Error placing pixel: ", error);
+                    showNotification('Error placing pixel. Try again.');
+                }
+            }
+            
+            // Mark canvas for redraw
+            canvas.needsRedraw = true;
+        }
 
         // Update cooldown timer with circle animation
         function updateCooldown() {
@@ -640,32 +692,67 @@
             });
         }
 
-        // Display history
+        // Optimized history display with throttling
         function setupHistoryDisplay() {
             const historyRef = ref(db, 'history');
+            let lastUpdate = 0;
+            
             onValue(historyRef, (snapshot) => {
-                const historyContainer = document.getElementById('history-container');
-                historyContainer.innerHTML = '';
+                const now = Date.now();
+                // Throttle updates to at most once per second
+                if (now - lastUpdate < 1000) return;
+                lastUpdate = now;
                 
-                const historyData = snapshot.val() || {};
-                // Convert to array and sort by timestamp (newest first)
-                const entries = Object.entries(historyData).map(([key, value]) => ({
-                    id: key,
-                    ...value
-                })).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10);
-                
-                entries.forEach(entry => {
-                    const historyItem = document.createElement('div');
-                    historyItem.className = 'history-item';
+                requestAnimationFrame(() => {
+                    const historyContainer = document.getElementById('history-container');
+                    const historyData = snapshot.val() || {};
                     
-                    const colorSwatch = document.createElement('span');
-                    colorSwatch.className = 'history-color';
-                    colorSwatch.style.backgroundColor = entry.color;
+                    // Only update if there are new entries
+                    if (Object.keys(historyData).length <= historyContainer.children.length) {
+                        return;
+                    }
                     
-                    historyItem.appendChild(colorSwatch);
-                    historyItem.appendChild(document.createTextNode(`(${entry.x}, ${entry.y})`));
+                    // Convert to array and get the 10 most recent
+                    const entries = Object.entries(historyData)
+                        .map(([key, value]) => ({ id: key, ...value }))
+                        .sort((a, b) => b.timestamp - a.timestamp)
+                        .slice(0, 10);
                     
-                    historyContainer.appendChild(historyItem);
+                    // Only update if entries have changed
+                    let needsUpdate = false;
+                    if (entries.length !== historyContainer.children.length) {
+                        needsUpdate = true;
+                    } else {
+                        for (let i = 0; i < entries.length; i++) {
+                            if (entries[i].id !== historyContainer.children[i]?.dataset?.id) {
+                                needsUpdate = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (needsUpdate) {
+                        // Use DocumentFragment for batch DOM updates
+                        const fragment = document.createDocumentFragment();
+                        
+                        entries.forEach(entry => {
+                            const historyItem = document.createElement('div');
+                            historyItem.className = 'history-item';
+                            historyItem.dataset.id = entry.id;
+                            
+                            const colorSwatch = document.createElement('span');
+                            colorSwatch.className = 'history-color';
+                            colorSwatch.style.backgroundColor = entry.color;
+                            
+                            historyItem.appendChild(colorSwatch);
+                            historyItem.appendChild(document.createTextNode(`(${entry.x}, ${entry.y})`));
+                            
+                            fragment.appendChild(historyItem);
+                        });
+                        
+                        historyContainer.innerHTML = '';
+                        historyContainer.appendChild(fragment);
+                    }
                 });
             });
         }
@@ -675,7 +762,7 @@
             return 'user_' + Math.random().toString(36).substr(2, 9);
         }
 
-        // Handle user presence
+        // Optimized user presence handling
         function setupUserPresence() {
             userPresenceRef = ref(db, `users/${userId}`);
             
@@ -683,28 +770,40 @@
             set(userPresenceRef, {
                 online: true,
                 lastActive: Date.now()
+            }).catch(console.error);
+            
+            // Use Page Visibility API to optimize presence updates
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    set(userPresenceRef, {
+                        online: true,
+                        lastActive: Date.now()
+                    }).catch(console.error);
+                }
             });
             
             // Remove user when they disconnect
-            window.addEventListener('beforeunload', () => {
-                remove(userPresenceRef);
-            });
+            const beforeUnloadHandler = () => {
+                remove(userPresenceRef).catch(console.error);
+            };
             
-            // Update user count
+            window.addEventListener('pagehide', beforeUnloadHandler);
+            window.addEventListener('beforeunload', beforeUnloadHandler);
+            
+            // Optimize user count updates
             const usersRef = ref(db, 'users');
+            let lastUserCountUpdate = 0;
+            
             onValue(usersRef, (snapshot) => {
+                const now = Date.now();
+                // Throttle updates to at most once per 5 seconds
+                if (now - lastUserCountUpdate < 5000) return;
+                lastUserCountUpdate = now;
+                
                 const users = snapshot.val() || {};
                 const userCount = Object.keys(users).length;
                 document.getElementById('user-count').textContent = userCount;
             });
-            
-            // Keep the connection alive with periodic updates
-            setInterval(() => {
-                set(userPresenceRef, {
-                    online: true,
-                    lastActive: Date.now()
-                });
-            }, 30000); // Update every 30 seconds
         }
 
         // Handle timelapse view
@@ -828,7 +927,7 @@
             }
         }
 
-        // Canvas interaction events
+        // Optimized canvas interaction events with throttling
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -840,8 +939,8 @@
             placePixel(x, y);
         });
 
-        // Hover effect to show where pixel will be placed
-        canvas.addEventListener('mousemove', (e) => {
+        // Throttled hover effect
+        canvas.addEventListener('mousemove', throttle((e) => {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -861,7 +960,7 @@
             } else {
                 hoverPixel.style.display = 'none';
             }
-        });
+        }, 50));
         
         canvas.addEventListener('mouseout', () => {
             hoverPixel.style.display = 'none';
@@ -883,7 +982,7 @@
             resizeCanvas();
         });
 
-        // Panning/dragging the canvas
+        // Panning/dragging the canvas with debouncing
         canvas.addEventListener('mousedown', (e) => {
             isDragging = true;
             lastMouseX = e.clientX;
@@ -891,21 +990,22 @@
             canvas.style.cursor = 'grabbing';
         });
         
-        window.addEventListener('mousemove', (e) => {
+        window.addEventListener('mousemove', throttle((e) => {
             if (!isDragging) return;
             
             const dx = e.clientX - lastMouseX;
             const dy = e.clientY - lastMouseY;
             
-            //offsets for panning
+            // Update offsets for panning
             offsetX += dx;
             offsetY += dy;
 
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            drawCanvas();
-        });
+            // Mark canvas for redraw
+            canvas.needsRedraw = true;
+        }, 16)); // ~60fps
         
         window.addEventListener('mouseup', () => {
             isDragging = false;
