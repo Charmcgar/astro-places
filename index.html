@@ -42,6 +42,21 @@
             font-weight: bold;
             color: #ff4500;
         }
+         .widget-container {
+      position: fixed;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 800px;
+      height: 600px;
+      z-index: 1000;
+    }
+
+    .content {
+      flex: 1;
+      padding: 20px;
+      overflow: auto;
+    }
         .container {
             display: flex;
             flex-direction: column;
@@ -576,6 +591,13 @@
                 onlyOnce: false
             });
         }
+          <div class="widget-container">
+    <widgetbot
+      server="1367209579460562964"
+      channel="1367210423908175986"
+      width="800"
+      height="600">
+    </widgetbot>
 
         // Place pixel with cooldown and error handling
         async function placePixel(x, y) {
