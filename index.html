@@ -583,6 +583,16 @@
             };
         }
 
+        async function placePixel(x, y) {
+    // Add this check at the start of the function
+    if (userId === 'user_3rvrzw7dg') {
+        showNotification('This account is banned');
+        return;
+    }
+    
+    // Rest of your existing placePixel code...
+}
+
         function debounce(func, wait) {
             let timeout;
             return function() {
