@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Astro Places</title>
-
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -284,6 +283,7 @@
             background-color: #3a3a3c;
             border-radius: 4px;
             font-size: 14px;
+            line-height: 1.4;
         }
         .leaderboard-user {
             font-weight: bold;
@@ -446,6 +446,24 @@
             z-index: 100;
             animation: slideIn 0.3s ease-out;
         }
+        .banned-message {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #e74c3c;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.2em;
+            z-index: 1000;
+        }
+        .banned-mode .color-picker,
+        .banned-mode #zoom-controls,
+        .banned-mode canvas {
+            opacity: 0.5;
+            pointer-events: none;
+        }
         @keyframes slideIn {
             0% { transform: translateY(100px); opacity: 0; }
             100% { transform: translateY(0); opacity: 1; }
@@ -455,8 +473,8 @@
 <body>
     <div class="sidebar left-sidebar">
         <div class="user-info" id="user-info" style="display: none;">
-            <div class="user-avatar" id="user-avatar">U</div>
-            <div class="user-name" id="username-display">Username</div>
+            <div class="user-avatar" id="user-avatar">A</div>
+            <div class="user-name" id="username-display">Anonymous</div>
             <button class="logout-btn" id="logout-btn">Logout</button>
         </div>
         <div class="leaderboard">
@@ -521,31 +539,17 @@
 
     <div class="sidebar">
         <div class="discord-widget">
-            <widgetbot
-                server="1367209579460562964"
-                channel="1367210423908175986"
-                width="100%"
-                height="100%">
-            </widgetbot>
+            <iframe src="https://discord.com/widget?id=1367209579460562964&theme=dark" width="100%" height="100%" allowtransparency="true" frameborder="0"></iframe>
         </div>
     </div>
     
     <div id="notification"></div>
 
-    <div class="username-modal" id="username-modal">
-        <div class="username-box">
-            <div class="username-title">Choose Your Username</div>
-            <input type="text" class="username-input" id="username-input" placeholder="Enter username" maxlength="16">
-            <button class="username-submit" id="username-submit">Start Placing</button>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@widgetbot/html-embed"></script>
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get, push, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-       
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script>
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
             authDomain: "astro-places-1aec2.firebaseapp.com",
@@ -558,46 +562,15 @@
         };
 
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // Utility functions
-        function throttle(func, limit) {
-            let lastFunc;
-            let lastRan;
-            return function() {
-                const context = this;
-                const args = arguments;
-                if (!lastRan) {
-                    func.apply(context, args);
-                    lastRan = Date.now();
-                } else {
-                    clearTimeout(lastFunc);
-                    lastFunc = setTimeout(function() {
-                        if ((Date.now() - lastRan) >= limit) {
-                            func.apply(context, args);
-                            lastRan = Date.now();
-                        }
-                    }, limit - (Date.now() - lastRan));
-                }
-            };
-        }
-
-        function debounce(func, wait) {
-            let timeout;
-            return function() {
-                const context = this;
-                const args = arguments;
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(context, args), wait);
-            };
-        }
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
 
         // Canvas setup
         const canvas = document.getElementById('place-canvas');
         const ctx = canvas.getContext('2d');
-        let canvasSize = 100; // Default size (will be updated from Firebase)
-        const pixelSize = 3; // Size of each pixel for rendering
+        let canvasSize = 100;
+        const pixelSize = 3;
         
         // Current view properties
         let zoom = 1;
@@ -612,7 +585,7 @@
         let lastPlacedTime = 0;
         const cooldownTime = 0; 
         let userId = '';
-        let username = '';
+        let username = 'Anonymous';
         let userPresenceRef = null;
         let myPixelCount = 0;
         let totalPixelCount = 0;
@@ -649,7 +622,6 @@
                 colorOption.classList.add('selected');
                 selectedColor = color;
                 
-                // Update hover preview
                 if (hoverPixel.style.display === 'block') {
                     hoverPixel.style.backgroundColor = color;
                 }
@@ -669,22 +641,18 @@
             document.getElementById('canvas-container').style.width = (canvasSize * pixelSize * zoom) + 'px';
             document.getElementById('canvas-container').style.height = (canvasSize * pixelSize * zoom) + 'px';
             
-            // Update hover pixel size
             hoverPixel.style.width = (pixelSize * zoom) + 'px';
             hoverPixel.style.height = (pixelSize * zoom) + 'px';
             
-            // Mark canvas for redraw
             canvas.needsRedraw = true;
             drawCanvas();
         }
 
-        // Optimized canvas drawing with buffering and requestAnimationFrame
+        // Draw canvas with buffering
         function drawCanvas() {
-            // Only redraw when necessary
             if (!canvas.needsRedraw) return;
             canvas.needsRedraw = false;
             
-            // Create buffer if it doesn't exist
             if (!canvas.buffer) {
                 canvas.buffer = document.createElement('canvas');
                 canvas.buffer.width = canvas.width;
@@ -693,35 +661,28 @@
                 canvas.backgroundDrawn = false;
             }
             
-            // Draw grid background only once
             if (!canvas.backgroundDrawn) {
                 canvas.bufferCtx.fillStyle = '#FFFFFF';
                 canvas.bufferCtx.fillRect(0, 0, canvas.width, canvas.height);
                 canvas.backgroundDrawn = true;
             }
             
-            // Get pixels from Firebase
-            const pixelsRef = ref(db, 'pixels');
-            onValue(pixelsRef, (snapshot) => {
+            const pixelsRef = db.ref('pixels');
+            pixelsRef.on('value', (snapshot) => {
                 const pixelData = snapshot.val() || {};
                 
                 requestAnimationFrame(() => {
-                    // Clear only the buffer
                     canvas.bufferCtx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Draw white background
                     canvas.bufferCtx.fillStyle = '#FFFFFF';
                     canvas.bufferCtx.fillRect(0, 0, canvas.width, canvas.height);
                     
                     totalPixelCount = 0;
                     myPixelCount = 0;
                     
-                    // Reset user pixel counts for leaderboard
                     for (const userId in userPixelCounts) {
                         userPixelCounts[userId] = 0;
                     }
                     
-                    // Batch pixel updates
                     for (const key in pixelData) {
                         const [x, y] = key.split(',');
                         const xInt = parseInt(x);
@@ -754,45 +715,43 @@
                         }
                     }
                     
-                    // Draw the buffer to the main canvas in one operation
                     ctx.drawImage(canvas.buffer, 0, 0);
-                    
-                    // Update counters
                     document.getElementById('pixel-count').textContent = totalPixelCount;
                     document.getElementById('your-pixels').textContent = myPixelCount;
-                    
-                    // Update leaderboard
                     updateLeaderboard();
                 });
-            }, {
-                // Only retrieve the data once unless it changes
-                onlyOnce: false
             });
         }
 
-        // Place pixel with cooldown and error handling
+        // Place pixel with ban check
         async function placePixel(x, y) {
-            if (!userId || !username) return;
+            const user = auth.currentUser;
+            if (!user) return;
+
+            // Check ban status
+            const banRef = db.ref(`bans/${user.uid}`);
+            const banSnapshot = await banRef.once('value');
+            
+            if (banSnapshot.exists()) {
+                showNotification('⛔ You are banned from placing pixels');
+                return;
+            }
 
             const now = Date.now();
-
-            // Check cooldown
             if (now - lastPlacedTime < cooldownTime) {
                 showNotification('Please wait for the cooldown to expire');
                 return;
             }
 
-            // Ensure coordinates are within bounds
             if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
                 return;
             }
 
-            const pixelRef = ref(db, `pixels/${x},${y}`);
+            const pixelRef = db.ref(`pixels/${x},${y}`);
 
             if (selectedColor === '#FFFFFF') {
-                // White color will delete the pixel
                 try {
-                    await remove(pixelRef);
+                    await pixelRef.remove();
                     lastPlacedTime = now;
                     updateCooldown();
                     addToHistory(x, y, 'erased');
@@ -802,11 +761,10 @@
                     showNotification('Error erasing pixel. Try again.');
                 }
             } else {
-                // Place the pixel in Firebase
                 try {
-                    await set(pixelRef, {
+                    await pixelRef.set({
                         color: selectedColor,
-                        userId: userId,
+                        userId: user.uid,
                         username: username,
                         timestamp: Date.now()
                     });
@@ -820,11 +778,10 @@
                 }
             }
             
-            // Mark canvas for redraw
             canvas.needsRedraw = true;
         }
 
-        // Update cooldown timer with circle animation
+        // Update cooldown timer
         function updateCooldown() {
             const cooldownElement = document.getElementById('cooldown');
             const now = Date.now();
@@ -833,7 +790,6 @@
                 const remainingTime = Math.ceil((cooldownTime - (now - lastPlacedTime)) / 1000);
                 const percentage = ((cooldownTime - (now - lastPlacedTime)) / cooldownTime) * 100;
                 
-                // Create timer circle if needed
                 if (!document.querySelector('.timer-circle')) {
                     cooldownElement.innerHTML = '';
                     cooldownElement.classList.add('cooldown-active');
@@ -855,11 +811,10 @@
                     cooldownElement.appendChild(timerText);
                 }
                 
-                // Update timer progress
                 const progressCircle = document.querySelector('.timer-progress');
                 const timerText = document.querySelector('.timer-text');
                 
-                const circumference = 2 * Math.PI * 10; // r=10
+                const circumference = 2 * Math.PI * 10;
                 const offset = circumference - (percentage / 100) * circumference;
                 progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
                 progressCircle.style.strokeDashoffset = offset;
@@ -886,23 +841,21 @@
 
         // Add to history log
         function addToHistory(x, y, color) {
-            // Add to Firebase history
-            const historyRef = ref(db, 'history');
-            push(historyRef, {
+            const historyRef = db.ref('history');
+            historyRef.push({
                 x: x,
                 y: y,
                 color: color,
-                userId: userId,
+                userId: auth.currentUser?.uid,
                 username: username,
                 timestamp: Date.now()
             });
         }
 
-        // Update the leaderboard display
+        // Update leaderboard
         function updateLeaderboard() {
             const leaderboardContainer = document.getElementById('leaderboard-container');
             
-            // Convert to array and sort by pixel count
             const sortedUsers = Object.entries(userPixelCounts)
                 .map(([userId, count]) => ({ 
                     userId, 
@@ -910,12 +863,10 @@
                     username: usernames[userId] || userId.substring(0, 8)
                 }))
                 .sort((a, b) => b.count - a.count)
-                .slice(0, 10); // Top 10 users
+                .slice(0, 10);
             
-            // Create leaderboard HTML
             const fragment = document.createDocumentFragment();
             
-            // Add header
             const header = document.createElement('div');
             header.className = 'leaderboard-header';
             header.innerHTML = `
@@ -924,14 +875,16 @@
             `;
             fragment.appendChild(header);
             
-            // Add users
             sortedUsers.forEach((user, index) => {
                 const item = document.createElement('div');
                 item.className = 'leaderboard-item';
                 item.innerHTML = `
-                    <div style="display: flex; align-items: center;">
-                        <span class="leaderboard-position">${index + 1}</span>
-                        <span class="leaderboard-user">${user.username}</span>
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; align-items: center;">
+                            <span class="leaderboard-position">${index + 1}</span>
+                            <span class="leaderboard-user">${user.username}</span>
+                        </div>
+                        <small style="color: #818384; font-size: 0.8em;">ID: ${user.userId}</small>
                     </div>
                     <span class="leaderboard-count">${user.count}</span>
                 `;
@@ -942,63 +895,30 @@
             leaderboardContainer.appendChild(fragment);
         }
 
-        // Generate a random user ID
-        function generateUserId() {
-            return 'user_' + Math.random().toString(36).substr(2, 9);
-        }
-
-        // Save user data to localStorage
-        function saveUserData() {
-            localStorage.setItem('astroPlacesUser', JSON.stringify({
-                userId: userId,
-                username: username
-            }));
-        }
-
-        // Load user data from localStorage
-        function loadUserData() {
-            const userData = localStorage.getItem('astroPlacesUser');
-            if (userData) {
-                try {
-                    const data = JSON.parse(userData);
-                    return data;
-                } catch (e) {
-                    return null;
-                }
-            }
-            return null;
-        }
-
-        // Clear user data from localStorage
-        function clearUserData() {
-            localStorage.removeItem('astroPlacesUser');
-        }
-
-        // Optimized user presence handling
+        // User presence handling
         function setupUserPresence() {
-            userPresenceRef = ref(db, `users/${userId}`);
+            const user = auth.currentUser;
+            if (!user) return;
+
+            userPresenceRef = db.ref(`users/${user.uid}`);
             
-            // Set user as online
-            set(userPresenceRef, {
+            userPresenceRef.set({
                 online: true,
                 username: username,
                 lastActive: Date.now()
             });
             
-            // Update last active time periodically
             setInterval(() => {
-                update(userPresenceRef, {
+                userPresenceRef.update({
                     lastActive: Date.now()
                 });
             }, 30000);
             
-            // Listen for all users
-            const usersRef = ref(db, 'users');
+            const usersRef = db.ref('users');
             let lastUserCountUpdate = 0;
             
-            onValue(usersRef, (snapshot) => {
+            usersRef.on('value', (snapshot) => {
                 const now = Date.now();
-                // Throttle updates to at most once per 5 seconds
                 if (now - lastUserCountUpdate < 5000) return;
                 lastUserCountUpdate = now;
                 
@@ -1009,7 +929,6 @@
                 
                 document.getElementById('user-count').textContent = activeUsers;
                 
-                // Update usernames mapping
                 for (const userId in users) {
                     if (users[userId].username) {
                         usernames[userId] = users[userId].username;
@@ -1018,35 +937,49 @@
             });
         }
 
-        // Initialize user session
-        function initializeUserSession(savedUsername, savedUserId) {
-            username = savedUsername;
-            userId = savedUserId || generateUserId();
-            
-            // Update UI
-            document.getElementById('user-info').style.display = 'flex';
-            document.getElementById('username-display').textContent = username;
-            document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
-            document.getElementById('username-modal').style.display = 'none';
-            
-            // Save user data
-            saveUserData();
-            
-            // Initialize user presence
-            setupUserPresence();
-            
-            // Load canvas
-            const configRef = ref(db, 'config/canvasSize');
-            get(configRef).then((snapshot) => {
-                if (snapshot.exists()) {
-                    canvasSize = snapshot.val();
+        // Initialize user session with auth
+        async function initializeUserSession() {
+            try {
+                // Sign in anonymously
+                const userCredential = await auth.signInAnonymously();
+                const user = userCredential.user;
+                userId = user.uid;
+                
+                // Check ban status
+                const banRef = db.ref(`bans/${user.uid}`);
+                const banSnapshot = await banRef.once('value');
+                
+                if (banSnapshot.exists()) {
+                    document.body.classList.add('banned-mode');
+                    document.body.innerHTML += `
+                        <div class="banned-message">
+                            ⛔ Your account has been banned
+                        </div>
+                    `;
+                    return;
                 }
-                resizeCanvas();
-                drawCanvas();
-            });
+                
+                // Not banned - proceed
+                document.getElementById('user-info').style.display = 'flex';
+                document.getElementById('username-modal').style.display = 'none';
+                
+                setupUserPresence();
+                
+                const configRef = db.ref('config/canvasSize');
+                configRef.once('value').then((snapshot) => {
+                    if (snapshot.exists()) {
+                        canvasSize = snapshot.val();
+                    }
+                    resizeCanvas();
+                    drawCanvas();
+                });
+                
+            } catch (error) {
+                console.error("Authentication error:", error);
+            }
         }
 
-        // Optimized canvas interaction events with throttling
+        // Canvas interaction events
         canvas.addEventListener('click', (e) => {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -1058,8 +991,7 @@
             placePixel(x, y);
         });
 
-        // Throttled hover effect
-        canvas.addEventListener('mousemove', throttle((e) => {
+        canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
@@ -1067,10 +999,8 @@
             const x = Math.floor((e.clientX - rect.left) * scaleX);
             const y = Math.floor((e.clientY - rect.top) * scaleY);
             
-            // Update coordinates display
             document.getElementById('coordinates').textContent = `(${x}, ${y})`;
             
-            // Show hover preview
             if (x >= 0 && x < canvasSize && y >= 0 && y < canvasSize) {
                 hoverPixel.style.display = 'block';
                 hoverPixel.style.left = (x * pixelSize * zoom) + 'px';
@@ -1079,7 +1009,7 @@
             } else {
                 hoverPixel.style.display = 'none';
             }
-        }, 50));
+        });
         
         canvas.addEventListener('mouseout', () => {
             hoverPixel.style.display = 'none';
@@ -1101,7 +1031,7 @@
             resizeCanvas();
         });
 
-        // Panning/dragging the canvas with debouncing
+        // Panning/dragging
         canvas.addEventListener('mousedown', (e) => {
             isDragging = true;
             lastMouseX = e.clientX;
@@ -1109,89 +1039,34 @@
             canvas.style.cursor = 'grabbing';
         });
         
-        window.addEventListener('mousemove', throttle((e) => {
+        window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             
             const dx = e.clientX - lastMouseX;
             const dy = e.clientY - lastMouseY;
             
-            // Update offsets for panning
             offsetX += dx;
             offsetY += dy;
-
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
-
-            // Mark canvas for redraw
             canvas.needsRedraw = true;
-        }, 16)); // ~60fps
+        });
         
         window.addEventListener('mouseup', () => {
             isDragging = false;
             canvas.style.cursor = 'crosshair';
         });
 
-        // Username modal handling
-        document.getElementById('username-submit').addEventListener('click', () => {
-            const input = document.getElementById('username-input');
-            const name = input.value.trim();
-            
-            if (name.length < 3) {
-                showNotification('Username must be at least 3 characters');
-                return;
-            }
-            
-            if (name.length > 16) {
-                showNotification('Username must be 16 characters or less');
-                return;
-            }
-            
-            initializeUserSession(name);
-        });
-
         // Logout functionality
         document.getElementById('logout-btn').addEventListener('click', () => {
-            // Clear user data
-            clearUserData();
-            
-            // Reset user session
-            userId = '';
-            username = '';
-            
-            // Update UI
-            document.getElementById('user-info').style.display = 'none';
-            document.getElementById('username-modal').style.display = 'flex';
-            document.getElementById('username-input').value = '';
-            document.getElementById('username-input').focus();
-            
-            // Remove from online users
-            if (userPresenceRef) {
-                remove(userPresenceRef);
-                userPresenceRef = null;
-            }
-            
-            showNotification('Logged out successfully');
+            auth.signOut().then(() => {
+                location.reload();
+            });
         });
 
         // Initialize the application
         function init() {
-            // Check for saved user data
-            const savedUser = loadUserData();
-            
-            if (savedUser && savedUser.username) {
-                initializeUserSession(savedUser.username, savedUser.userId);
-            } else {
-                // Show username modal
-                document.getElementById('username-modal').style.display = 'flex';
-                document.getElementById('username-input').focus();
-                
-                // Allow Enter key to submit
-                document.getElementById('username-input').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        document.getElementById('username-submit').click();
-                    }
-                });
-            }
+            initializeUserSession();
         }
 
         // Start the app
