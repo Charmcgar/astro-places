@@ -161,7 +161,7 @@
             color: #ff4500;
             margin-top: 0.5rem;
             padding: 8px 12px;
-            border-radius: 24px;
+            border-radius: 20px;
             background-color: #272729;
         }
         .cooldown-active {
@@ -583,8 +583,6 @@
             };
         }
 
-    
-
         function debounce(func, wait) {
             let timeout;
             return function() {
@@ -612,7 +610,7 @@
         // User interaction
         let selectedColor = '#000000';
         let lastPlacedTime = 0;
-        const cooldownTime = 0; 
+        const cooldownTime = 250; 
         let userId = '';
         let username = '';
         let userPresenceRef = null;
@@ -773,64 +771,54 @@
         }
 
         // Place pixel with cooldown and error handling
-     async function placePixel(x, y) {
-    // Ban specific user
-    if (userId === 'user_3rvrzw7dg') {
-        showNotification('This account is banned');
-        return;
-    }
+        async function placePixel(x, y) {
+            if (!userId || !username) return;
 
-    if (!userId || !username) return;
+            const now = Date.now();
 
-    const now = Date.now();
+            // Check cooldown
+            if (now - lastPlacedTime < cooldownTime) {
+                showNotification('Please wait for the cooldown to expire');
+                return;
+            }
 
-    // Check cooldown
-    if (now - lastPlacedTime < cooldownTime) {
-        showNotification('Please wait for the cooldown to expire');
-        return;
-    }
+            // Ensure coordinates are within bounds
+            if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
+                return;
+            }
 
-    // Ensure coordinates are within bounds
-    if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
-        return;
-    }
+            const pixelRef = ref(db, `pixels/${x},${y}`);
 
-    const pixelRef = ref(db, `pixels/${x},${y}`);
-
-    if (selectedColor === '#FFFFFF') {
-        // White color will delete the pixel
-        try {
-            await remove(pixelRef);
-            lastPlacedTime = now;
-            updateCooldown();
-            addToHistory(x, y, 'erased');
-            showNotification('Pixel erased successfully!');
-        } catch (error) {
-            console.error("Error erasing pixel: ", error);
-            showNotification('Error erasing pixel. Try again.');
-        }
-    } else {
-        // Place the pixel in Firebase
-        try {
-            await set(pixelRef, {
-                color: selectedColor,
-                userId: userId,
-                username: username,
-                timestamp: Date.now()
-            });
-            lastPlacedTime = now;
-            updateCooldown();
-            addToHistory(x, y, selectedColor);
-            showNotification('Pixel placed successfully!');
-        } catch (error) {
-            console.error("Error placing pixel: ", error);
-            showNotification('Error placing pixel. Try again.');
-        }
-    }
-    
-    // Mark canvas for redraw
-    canvas.needsRedraw = true;
-}
+            if (selectedColor === '#FFFFFF') {
+                // White color will delete the pixel
+                try {
+                    await remove(pixelRef);
+                    lastPlacedTime = now;
+                    updateCooldown();
+                    addToHistory(x, y, 'erased');
+                    showNotification('Pixel erased successfully!');
+                } catch (error) {
+                    console.error("Error erasing pixel: ", error);
+                    showNotification('Error erasing pixel. Try again.');
+                }
+            } else {
+                // Place the pixel in Firebase
+                try {
+                    await set(pixelRef, {
+                        color: selectedColor,
+                        userId: userId,
+                        username: username,
+                        timestamp: Date.now()
+                    });
+                    lastPlacedTime = now;
+                    updateCooldown();
+                    addToHistory(x, y, selectedColor);
+                    showNotification('Pixel placed successfully!');
+                } catch (error) {
+                    console.error("Error placing pixel: ", error);
+                    showNotification('Error placing pixel. Try again.');
+                }
+            }
             
             // Mark canvas for redraw
             canvas.needsRedraw = true;
@@ -910,9 +898,11 @@
             });
         }
 
+        // Update the leaderboard display
         function updateLeaderboard() {
             const leaderboardContainer = document.getElementById('leaderboard-container');
             
+            // Convert to array and sort by pixel count
             const sortedUsers = Object.entries(userPixelCounts)
                 .map(([userId, count]) => ({ 
                     userId, 
@@ -924,7 +914,8 @@
             
             // Create leaderboard HTML
             const fragment = document.createDocumentFragment();
-     
+            
+            // Add header
             const header = document.createElement('div');
             header.className = 'leaderboard-header';
             header.innerHTML = `
@@ -951,7 +942,7 @@
             leaderboardContainer.appendChild(fragment);
         }
 
-        // generate a random user Id
+        // Generate a random user ID
         function generateUserId() {
             return 'user_' + Math.random().toString(36).substr(2, 9);
         }
