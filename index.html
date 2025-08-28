@@ -1,1201 +1,259 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Astro Places</title>
-
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            background-color: #1a1a1b;
-            color: #d7dadc;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .main-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 1rem;
-            overflow-y: auto;
-        }
-        .sidebar {
-            width: 300px;
-            padding: 1rem;
-            background-color: #1a1a1b;
-            border-left: 1px solid #343536;
-            overflow-y: auto;
-            height: 100vh;
-        }
-        .left-sidebar {
-            border-left: none;
-            border-right: 1px solid #343536;
-        }
-        .header {
-            width: 100%;
-            background-color: #1a1a1b;
-            color: white;
-            text-align: center;
-            padding: 1rem 0;
-            margin-bottom: 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .logo-icon {
-            color: #ff4500;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .logo-text {
-            font-size: 22px;
-            font-weight: bold;
-            color: #ff4500;
-        }
-        #canvas-container {
-            position: relative;
-            margin-bottom: 1rem;
-            border: 1px solid #343536;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            overflow: hidden;
-            background-image: linear-gradient(45deg, #2c2c2c 25%, transparent 25%), 
-                              linear-gradient(-45deg, #2c2c2c 25%, transparent 25%), 
-                              linear-gradient(45deg, transparent 75%, #2c2c2c 75%), 
-                              linear-gradient(-45deg, transparent 75%, #2c2c2c 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-        }
-        #place-canvas {
-            background-color: transparent;
-            image-rendering: pixelated;
-            cursor: crosshair;
-        }
-        .hover-pixel {
-            position: absolute;
-            pointer-events: none;
-            border: 1px solid white;
-            box-shadow: 0 0 0 1px black;
-            display: none;
-        }
-        .color-picker {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin: 1rem 0;
-            max-width: 400px;
-            background-color: #272729;
-            padding: 12px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        }
-        .color-option {
-            width: 30px;
-            height: 30px;
-            margin: 4px;
-            border-radius: 4px;
-            cursor: pointer;
-            border: 2px solid #272729;
-            transition: transform 0.1s;
-        }
-        .color-option:hover {
-            transform: scale(1.1);
-        }
-        .color-option.selected {
-            border: 2px solid white;
-            transform: scale(1.1);
-            box-shadow: 0 0 5px rgba(255,255,255,0.5);
-        }
-        .controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 1rem;
-            gap: 10px;
-            width: 100%;
-        }
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin: 5px 0;
-            width: 100%;
-            justify-content: center;
-        }
-        #zoom-controls {
-            display: flex;
-            gap: 10px;
-        }
-        button {
-            background-color: #ff4500;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #ff5722;
-        }
-        button:disabled {
-            background-color: #555;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        #cooldown {
-            font-weight: bold;
-            color: #ff4500;
-            margin-top: 0.5rem;
-            padding: 8px 12px;
-            border-radius: 20px;
-            background-color: #272729;
-        }
-        .cooldown-active {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .timer-circle {
-            position: relative;
-            width: 24px;
-            height: 24px;
-        }
-        .timer-circle svg {
-            transform: rotate(-90deg);
-        }
-        .timer-circle circle {
-            fill: none;
-            stroke-width: 2;
-            stroke-linecap: round;
-        }
-        .timer-bg {
-            stroke: #444;
-        }
-        .timer-progress {
-            stroke: #ff4500;
-            transition: stroke-dashoffset 1s linear;
-        }
-        .stats-container {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 600px;
-            margin-top: 1rem;
-            padding: 10px;
-            background-color: #272729;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 0 10px;
-        }
-        .stat-label {
-            font-size: 12px;
-            color: #818384;
-        }
-        .stat-value {
-            font-size: 16px;
-            font-weight: bold;
-        }
-        #coordinates {
-            padding: 8px 12px;
-            font-family: monospace;
-            background-color: #272729;
-            border-radius: 4px;
-            display: inline-block;
-        }
-        .history-viewer {
-            width: 100%;
-            margin-top: 1rem;
-            padding: 15px;
-            background-color: #272729;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        .history-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #e8e6e3;
-        }
-        .history-container {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-        }
-        .history-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 8px;
-            background-color: #3a3a3c;
-            border-radius: 4px;
-            font-size: 14px;
-            white-space: nowrap;
-        }
-        .history-color {
-            width: 15px;
-            height: 15px;
-            border-radius: 3px;
-            display: inline-block;
-        }
-        .leaderboard {
-            width: 100%;
-            margin-top: 1rem;
-            padding: 15px;
-            background-color: #272729;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        .leaderboard-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #e8e6e3;
-        }
-        .leaderboard-container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .leaderboard-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 12px;
-            background-color: #3a3a3c;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .leaderboard-user {
-            font-weight: bold;
-        }
-        .leaderboard-count {
-            color: #ff4500;
-            font-weight: bold;
-        }
-        .leaderboard-position {
-            width: 24px;
-            text-align: center;
-            font-weight: bold;
-            color: #ff4500;
-            margin-right: 8px;
-        }
-        .leaderboard-header {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 12px;
-            font-weight: bold;
-            border-bottom: 1px solid #343536;
-            margin-bottom: 5px;
-        }
-        .username-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .username-box {
-            background-color: #272729;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            width: 300px;
-            text-align: center;
-        }
-        .username-title {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: #ff4500;
-        }
-        .username-input {
-            width: 100%;
-            padding: 0.75rem;
-            margin-bottom: 1rem;
-            background-color: #343536;
-            border: 1px solid #515252;
-            color: #d7dadc;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-        .username-submit {
-            width: 100%;
-            padding: 0.75rem;
-            background-color: #ff4500;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .username-submit:hover {
-            background-color: #ff5722;
-        }
-        .discord-widget {
-            width: 100%;
-            height: 600px;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-top: 1rem;
-        }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 1rem;
-            padding: 10px;
-            background-color: #272729;
-            border-radius: 8px;
-        }
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: #ff4500;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-        }
-        .user-name {
-            font-weight: bold;
-        }
-        .logout-btn {
-            margin-left: auto;
-            background: none;
-            border: none;
-            color: #818384;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        .logout-btn:hover {
-            color: #d7dadc;
-        }
-        @media (max-width: 1200px) {
-            .sidebar {
-                width: 250px;
-            }
-        }
-        @media (max-width: 992px) {
-            body {
-                flex-direction: column;
-                overflow-y: auto;
-                height: auto;
-            }
-            .sidebar {
-                width: 100%;
-                height: auto;
-                border-left: none;
-                border-right: none;
-                border-top: 1px solid #343536;
-                order: 2;
-            }
-            .main-content {
-                order: 1;
-            }
-        }
-        @media (max-width: 768px) {
-            .color-picker {
-                max-width: 320px;
-            }
-            .stats-container {
-                flex-wrap: wrap;
-            }
-            .stat-item {
-                width: 50%;
-                margin-bottom: 10px;
-            }
-        }
-        #notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #272729;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 4px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            display: none;
-            z-index: 100;
-            animation: slideIn 0.3s ease-out;
-        }
-        @keyframes slideIn {
-            0% { transform: translateY(100px); opacity: 0; }
-            100% { transform: translateY(0); opacity: 1; }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Pixel Place Multiplayer</title>
+  <style>
+    body { 
+      margin: 0; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      background: #111; 
+      color: white; 
+    }
+    canvas { 
+      border: 2px solid white; 
+      image-rendering: pixelated; 
+      background: black; 
+    }
+    .hotbar {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+    }
+    .hotbar div {
+      width: 30px; height: 30px; border: 2px solid white; cursor: pointer;
+    }
+    .hotbar .selected { border: 2px solid yellow; }
+    .coordinates {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
-    <div class="sidebar left-sidebar">
-        <div class="user-info" id="user-info" style="display: none;">
-            <div class="user-avatar" id="user-avatar">U</div>
-            <div class="user-name" id="username-display">Username</div>
-            <button class="logout-btn" id="logout-btn">Logout</button>
-        </div>
-        <div class="leaderboard">
-            <div class="leaderboard-title">Top Contributors</div>
-            <div class="leaderboard-container" id="leaderboard-container"></div>
-        </div>
-    </div>
+  <canvas id="game"></canvas>
+  <div class="hotbar" id="hotbar"></div>
+  <div class="coordinates" id="coordinates">X: 100, Y: 100</div>
 
-    <div class="main-content">
-        <div class="header">
-            <div class="logo">
-                <div class="logo-icon">Astro</div>
-                <div class="logo-text">Places</div>
-            </div>
-        </div>
-        
-        <div class="container">
-            <div class="control-group">
-                <div id="cooldown">Ready to place a pixel!</div>
-                <div id="coordinates">Hover over canvas to see coordinates</div>
-            </div>
-            
-            <div id="canvas-container">
-                <canvas id="place-canvas" width="100" height="100"></canvas>
-                <div class="hover-pixel" id="hover-pixel"></div>
-            </div>
-            
-            <div class="color-picker" id="color-picker"></div>
-            
-            <div class="controls">
-                <div class="control-group">
-                    <div id="zoom-controls">
-                        <button id="zoom-out">-</button>
-                        <button id="zoom-reset">Reset View</button>
-                        <button id="zoom-in">+</button>
-                    </div>
-                    <button id="timelapse-button">View Timelapse</button>
-                </div>
-            </div>
-            
-            <div class="stats-container">
-                <div class="stat-item">
-                    <div class="stat-value" id="user-count">0</div>
-                    <div class="stat-label">Users Online</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="pixel-count">0</div>
-                    <div class="stat-label">Pixels Placed</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="your-pixels">0</div>
-                    <div class="stat-label">Your Pixels</div>
-                </div>
-            </div>
-            
-            <div class="history-viewer">
-                <div class="history-title">Recent Activity</div>
-                <div class="history-container" id="history-container"></div>
-            </div>
-        </div>
-    </div>
+  <script type="module">
 
-    <div class="sidebar">
-        <div class="discord-widget">
-            <widgetbot
-                server="1367209579460562964"
-                channel="1367210423908175986"
-                width="100%"
-                height="100%">
-            </widgetbot>
-        </div>
-    </div>
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAJ6-c8Pe7ixoVOSDt43vCIWHDcO2adsGY",
+      authDomain: "astro-places-v2.firebaseapp.com",
+      databaseURL: "https://astro-places-v2-default-rtdb.firebaseio.com",
+      projectId: "astro-places-v2",
+      storageBucket: "astro-places-v2.firebasestorage.app",
+      messagingSenderId: "923457528346",
+      appId: "1:923457528346:web:57acc74de094f19d6467a3"
+    };
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
     
-    <div id="notification"></div>
+    console.log('Firebase initialized');
 
-    <div class="username-modal" id="username-modal">
-        <div class="username-box">
-            <div class="username-title">Choose Your Username</div>
-            <input type="text" class="username-input" id="username-input" placeholder="Enter username" maxlength="16">
-            <button class="username-submit" id="username-submit">Start Placing</button>
-        </div>
-    </div>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
 
-    <script src="https://cdn.jsdelivr.net/npm/@widgetbot/html-embed"></script>
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, get, push, remove, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-       
-        const firebaseConfig = {
-            apiKey: "AIzaSyCpOUr78CAyGatrQdVOw6yf8EK4OvtoMoo",
-            authDomain: "astro-places-1aec2.firebaseapp.com",
-            projectId: "astro-places-1aec2",
-            storageBucket: "astro-places-1aec2.appspot.com",
-            messagingSenderId: "502500788903",
-            appId: "1:502500788903:web:5f742fd1ad5cce9063e982",
-            measurementId: "G-6J7SM1KM05",
-            databaseURL: "https://astro-places-1aec2-default-rtdb.firebaseio.com"
-        };
+    const BOARD_W = 200, BOARD_H = 200;
+    const CELL_SIZE = 20;
+    let VIEW_W = Math.floor(window.innerWidth / CELL_SIZE);
+    let VIEW_H = Math.floor(window.innerHeight / CELL_SIZE);
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-        // Utility functions
-        function throttle(func, limit) {
-            let lastFunc;
-            let lastRan;
-            return function() {
-                const context = this;
-                const args = arguments;
-                if (!lastRan) {
-                    func.apply(context, args);
-                    lastRan = Date.now();
-                } else {
-                    clearTimeout(lastFunc);
-                    lastFunc = setTimeout(function() {
-                        if ((Date.now() - lastRan) >= limit) {
-                            func.apply(context, args);
-                            lastRan = Date.now();
-                        }
-                    }, limit - (Date.now() - lastRan));
-                }
-            };
+    let cursor = { x: 100, y: 100 };
+    let board = [];
+    let zoomedOut = false;
+    for (let y = 0; y < BOARD_H; y++) {
+      board[y] = Array(BOARD_W).fill("#000");
+    }
+
+    console.log('Board initialized');
+
+    // Load existing pixels from Firebase
+    console.log('Setting up Firebase listener...');
+    const pixelsRef = ref(database, 'pixels');
+    onValue(pixelsRef, (snapshot) => {
+      console.log('Firebase listener triggered!');
+      const data = snapshot.val();
+      console.log('Firebase data:', data);
+      if (data) {
+        let loadedCount = 0;
+        for (let x in data) {
+          for (let y in data[x]) {
+            if (data[x][y] && data[x][y].color) {
+              const xPos = parseInt(x);
+              const yPos = parseInt(y);
+              console.log(`Loading pixel at ${xPos},${yPos} with color ${data[x][y].color}`);
+              if (xPos >= 0 && xPos < BOARD_W && yPos >= 0 && yPos < BOARD_H) {
+                board[yPos][xPos] = data[x][y].color;
+                loadedCount++;
+              }
+            }
+          }
         }
+        console.log(`Loaded ${loadedCount} pixels from Firebase`);
+      } else {
+        console.log('No data found in Firebase');
+      }
+    }, (error) => {
+      console.error('Firebase error:', error);
+    });
 
-        function debounce(func, wait) {
-            let timeout;
-            return function() {
-                const context = this;
-                const args = arguments;
-                clearTimeout(timeout);
-                timeout = setTimeout(() => func.apply(context, args), wait);
-            };
+    // colors
+    const colors = [
+      "#e00", "#0e0", "#00e", "#ee0", "#0ee", "#e0e", "#fff", "#888", "#000",
+      "#f80", "#8f0", "#08f", "#f08", "#80f", "#0f8", "#ff8", "#8ff", "#f8f",
+      "#840", "#048"
+    ];
+    let selectedColor = colors[0];
+
+    const hotbar = document.getElementById("hotbar");
+    const coordinatesDiv = document.getElementById("coordinates");
+    
+    // cordinates
+    function updateCoordinates() {
+      coordinatesDiv.textContent = `X: ${cursor.x}, Y: ${cursor.y}`;
+    }
+    
+    colors.forEach((c, i) => {
+      let div = document.createElement("div");
+      div.style.background = c;
+      if (i === 0) div.classList.add("selected");
+      div.onclick = () => {
+        selectedColor = c;
+        document.querySelectorAll(".hotbar div").forEach(d => d.classList.remove("selected"));
+        div.classList.add("selected");
+      };
+      hotbar.appendChild(div);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "w") {
+        cursor.y = Math.max(0, cursor.y - 1);
+        updateCoordinates();
+      }
+      if (e.key === "s") {
+        cursor.y = Math.min(BOARD_H - 1, cursor.y + 1);
+        updateCoordinates();
+      }
+      if (e.key === "a") {
+        cursor.x = Math.max(0, cursor.x - 1);
+        updateCoordinates();
+      }
+      if (e.key === "d") {
+        cursor.x = Math.min(BOARD_W - 1, cursor.x + 1);
+        updateCoordinates();
+      }
+      if (e.key === "t" || e.key === "T") {
+        zoomedOut = !zoomedOut;
+      }
+      if (e.code === "Space") {
+        e.preventDefault(); 
+        board[cursor.y][cursor.x] = selectedColor;
+        // save
+        console.log(`Saving pixel at ${cursor.x},${cursor.y} with color ${selectedColor}`);
+        const pixelRef = ref(database, `pixels/${cursor.x}/${cursor.y}`);
+        set(pixelRef, { color: selectedColor })
+          .then(() => {
+            console.log('Pixel saved successfully to Firebase');
+          })
+          .catch((error) => {
+            console.error('Error saving pixel:', error);
+          });
+      }
+      if (e.key >= "1" && e.key <= "9") {
+        let idx = parseInt(e.key) - 1;
+        if (colors[idx]) {
+          selectedColor = colors[idx];
+          document.querySelectorAll(".hotbar div").forEach(d => d.classList.remove("selected"));
+          hotbar.children[idx].classList.add("selected");
         }
+      }
+    });
 
-        // Canvas setup
-        const canvas = document.getElementById('place-canvas');
-        const ctx = canvas.getContext('2d');
-        let canvasSize = 100; // Default size (will be updated from Firebase)
-        const pixelSize = 3; // Size of each pixel for rendering
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (zoomedOut) {
+        // zoomed out view - show entire board
+        const scale = Math.min(canvas.width / BOARD_W, canvas.height / BOARD_H);
+        const offsetX = (canvas.width - BOARD_W * scale) / 2;
+        const offsetY = (canvas.height - BOARD_H * scale) / 2;
         
-        // Current view properties
-        let zoom = 1;
-        let offsetX = 0;
-        let offsetY = 0;
-        let isDragging = false;
-        let lastMouseX = 0;
-        let lastMouseY = 0;
+        for (let y = 0; y < BOARD_H; y++) {
+          for (let x = 0; x < BOARD_W; x++) {
+            ctx.fillStyle = board[y][x];
+            ctx.fillRect(offsetX + x * scale, offsetY + y * scale, scale, scale);
+          }
+        }
         
-        // User interaction
-        let selectedColor = '#000000';
-        let lastPlacedTime = 0;
-        const cooldownTime = 0; 
-        let userId = '';
-        let username = '';
-        let userPresenceRef = null;
-        let myPixelCount = 0;
-        let totalPixelCount = 0;
-        
-        // Hover preview
-        const hoverPixel = document.getElementById('hover-pixel');
-        
-        // Color palette
-        const colors = [
-            '#FFFFFF', '#D4D7D9', '#898D90', '#515252', '#000000',
-            '#D80000', '#FF4500', '#FFA800', '#FFD635', '#00A368',
-            '#7EED56', '#2450A4', '#3690EA', '#51E9F4', '#811E9F',
-            '#B44AC0', '#FF99AA', '#6A5CFF', '#E4ABFF', '#BE0039',
-            '#FF3881', '#493AC1', '#6D001A', '#6D482F', '#9C6926',
-            '#008080', '#00CED1', '#20B2AA', '#556B2F', '#8FBC8F',
-            '#F08080', '#FA8072', '#FFDAB9', '#FFB6C1', '#DB7093',
-            '#9370DB', '#BA55D3', '#8A2BE2', '#4B0082', '#4169E1',
-            '#00BFFF', '#1E90FF', '#7B68EE', '#FF6347', '#FF7F50',
-            '#FFA07A', '#EEE8AA', '#98FB98', '#ADFF2F'
-        ];
+        // draw cursor
+        ctx.strokeStyle = "yellow";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          offsetX + cursor.x * scale, 
+          offsetY + cursor.y * scale, 
+          scale, scale
+        );
+      } else {
+        // normal view
+        let offsetX = cursor.x - Math.floor(VIEW_W / 2);
+        let offsetY = cursor.y - Math.floor(VIEW_H / 2);
+        if (offsetX < 0) offsetX = 0;
+        if (offsetY < 0) offsetY = 0;
+        if (offsetX + VIEW_W > BOARD_W) offsetX = BOARD_W - VIEW_W;
+        if (offsetY + VIEW_H > BOARD_H) offsetY = BOARD_H - VIEW_H;
 
-        // Track user pixel counts for leaderboard
-        const userPixelCounts = {};
-        const usernames = {};
-
-        // Create color picker
-        const colorPicker = document.getElementById('color-picker');
-        colors.forEach(color => {
-            const colorOption = document.createElement('div');
-            colorOption.className = 'color-option';
-            colorOption.style.backgroundColor = color;
-            colorOption.addEventListener('click', () => {
-                document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
-                colorOption.classList.add('selected');
-                selectedColor = color;
-                
-                // Update hover preview
-                if (hoverPixel.style.display === 'block') {
-                    hoverPixel.style.backgroundColor = color;
-                }
-            });
-            colorPicker.appendChild(colorOption);
-        });
-        
-        // Select the first color by default
-        document.querySelector('.color-option').classList.add('selected');
-
-        // Resize canvas element based on zoom level
-        function resizeCanvas() {
-            canvas.width = canvasSize;
-            canvas.height = canvasSize;
-            canvas.style.width = (canvasSize * pixelSize * zoom) + 'px';
-            canvas.style.height = (canvasSize * pixelSize * zoom) + 'px';
-            document.getElementById('canvas-container').style.width = (canvasSize * pixelSize * zoom) + 'px';
-            document.getElementById('canvas-container').style.height = (canvasSize * pixelSize * zoom) + 'px';
-            
-            // Update hover pixel size
-            hoverPixel.style.width = (pixelSize * zoom) + 'px';
-            hoverPixel.style.height = (pixelSize * zoom) + 'px';
-            
-            // Mark canvas for redraw
-            canvas.needsRedraw = true;
-            drawCanvas();
+        for (let y = 0; y < VIEW_H; y++) {
+          for (let x = 0; x < VIEW_W; x++) {
+            let bx = x + offsetX, by = y + offsetY;
+            ctx.fillStyle = board[by][bx];
+            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
         }
 
-        // Optimized canvas drawing with buffering and requestAnimationFrame
-        function drawCanvas() {
-            // Only redraw when necessary
-            if (!canvas.needsRedraw) return;
-            canvas.needsRedraw = false;
-            
-            // Create buffer if it doesn't exist
-            if (!canvas.buffer) {
-                canvas.buffer = document.createElement('canvas');
-                canvas.buffer.width = canvas.width;
-                canvas.buffer.height = canvas.height;
-                canvas.bufferCtx = canvas.buffer.getContext('2d');
-                canvas.backgroundDrawn = false;
-            }
-            
-            // Draw grid background only once
-            if (!canvas.backgroundDrawn) {
-                canvas.bufferCtx.fillStyle = '#FFFFFF';
-                canvas.bufferCtx.fillRect(0, 0, canvas.width, canvas.height);
-                canvas.backgroundDrawn = true;
-            }
-            
-            // Get pixels from Firebase
-            const pixelsRef = ref(db, 'pixels');
-            onValue(pixelsRef, (snapshot) => {
-                const pixelData = snapshot.val() || {};
-                
-                requestAnimationFrame(() => {
-                    // Clear only the buffer
-                    canvas.bufferCtx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Draw white background
-                    canvas.bufferCtx.fillStyle = '#FFFFFF';
-                    canvas.bufferCtx.fillRect(0, 0, canvas.width, canvas.height);
-                    
-                    totalPixelCount = 0;
-                    myPixelCount = 0;
-                    
-                    // Reset user pixel counts for leaderboard
-                    for (const userId in userPixelCounts) {
-                        userPixelCounts[userId] = 0;
-                    }
-                    
-                    // Batch pixel updates
-                    for (const key in pixelData) {
-                        const [x, y] = key.split(',');
-                        const xInt = parseInt(x);
-                        const yInt = parseInt(y);
-                        
-                        if (xInt >= 0 && xInt < canvasSize && yInt >= 0 && yInt < canvasSize) {
-                            const pixelValue = pixelData[key];
-                            let pixelColor;
-                            
-                            if (typeof pixelValue === 'string') {
-                                pixelColor = pixelValue.startsWith('#') ? pixelValue : `#${pixelValue}`;
-                            } else if (pixelValue?.color) {
-                                pixelColor = pixelValue.color.startsWith('#') ? pixelValue.color : `#${pixelValue.color}`;
-                            } else {
-                                pixelColor = '#FFFFFF';
-                            }
-                            
-                            canvas.bufferCtx.fillStyle = pixelColor;
-                            canvas.bufferCtx.fillRect(xInt, yInt, 1, 1);
-                            totalPixelCount++;
-                            
-                            if (typeof pixelValue === 'object' && pixelValue?.userId) {
-                                const userId = pixelValue.userId;
-                                userPixelCounts[userId] = (userPixelCounts[userId] || 0) + 1;
-                                
-                                if (userId === userId) {
-                                    myPixelCount++;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Draw the buffer to the main canvas in one operation
-                    ctx.drawImage(canvas.buffer, 0, 0);
-                    
-                    // Update counters
-                    document.getElementById('pixel-count').textContent = totalPixelCount;
-                    document.getElementById('your-pixels').textContent = myPixelCount;
-                    
-                    // Update leaderboard
-                    updateLeaderboard();
-                });
-            }, {
-                // Only retrieve the data once unless it changes
-                onlyOnce: false
-            });
-        }
+        // draw cursor
+        ctx.strokeStyle = "yellow";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          (cursor.x - offsetX) * CELL_SIZE, 
+          (cursor.y - offsetY) * CELL_SIZE, 
+          CELL_SIZE, CELL_SIZE
+        );
+      }
+    }
 
-        // Place pixel with cooldown and error handling
-        async function placePixel(x, y) {
-            if (!userId || !username) return;
+    function loop() {
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
 
-            const now = Date.now();
-
-            // Check cooldown
-            if (now - lastPlacedTime < cooldownTime) {
-                showNotification('Please wait for the cooldown to expire');
-                return;
-            }
-
-            // Ensure coordinates are within bounds
-            if (x < 0 || x >= canvasSize || y < 0 || y >= canvasSize) {
-                return;
-            }
-
-            const pixelRef = ref(db, `pixels/${x},${y}`);
-
-            if (selectedColor === '#FFFFFF') {
-                // White color will delete the pixel
-                try {
-                    await remove(pixelRef);
-                    lastPlacedTime = now;
-                    updateCooldown();
-                    addToHistory(x, y, 'erased');
-                    showNotification('Pixel erased successfully!');
-                } catch (error) {
-                    console.error("Error erasing pixel: ", error);
-                    showNotification('Error erasing pixel. Try again.');
-                }
-            } else {
-                // Place the pixel in Firebase
-                try {
-                    await set(pixelRef, {
-                        color: selectedColor,
-                        userId: userId,
-                        username: username,
-                        timestamp: Date.now()
-                    });
-                    lastPlacedTime = now;
-                    updateCooldown();
-                    addToHistory(x, y, selectedColor);
-                    showNotification('Pixel placed successfully!');
-                } catch (error) {
-                    console.error("Error placing pixel: ", error);
-                    showNotification('Error placing pixel. Try again.');
-                }
-            }
-            
-            // Mark canvas for redraw
-            canvas.needsRedraw = true;
-        }
-
-        // Update cooldown timer with circle animation
-        function updateCooldown() {
-            const cooldownElement = document.getElementById('cooldown');
-            const now = Date.now();
-            
-            if (now - lastPlacedTime < cooldownTime) {
-                const remainingTime = Math.ceil((cooldownTime - (now - lastPlacedTime)) / 1000);
-                const percentage = ((cooldownTime - (now - lastPlacedTime)) / cooldownTime) * 100;
-                
-                // Create timer circle if needed
-                if (!document.querySelector('.timer-circle')) {
-                    cooldownElement.innerHTML = '';
-                    cooldownElement.classList.add('cooldown-active');
-                    
-                    const timerCircle = document.createElement('div');
-                    timerCircle.className = 'timer-circle';
-                    timerCircle.innerHTML = `
-                        <svg width="24" height="24" viewBox="0 0 24 24">
-                            <circle class="timer-bg" cx="12" cy="12" r="10" />
-                            <circle class="timer-progress" cx="12" cy="12" r="10" stroke-dasharray="62.8" stroke-dashoffset="0" />
-                        </svg>
-                    `;
-                    
-                    const timerText = document.createElement('span');
-                    timerText.className = 'timer-text';
-                    timerText.textContent = `${remainingTime}s`;
-                    
-                    cooldownElement.appendChild(timerCircle);
-                    cooldownElement.appendChild(timerText);
-                }
-                
-                // Update timer progress
-                const progressCircle = document.querySelector('.timer-progress');
-                const timerText = document.querySelector('.timer-text');
-                
-                const circumference = 2 * Math.PI * 10; // r=10
-                const offset = circumference - (percentage / 100) * circumference;
-                progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
-                progressCircle.style.strokeDashoffset = offset;
-                
-                timerText.textContent = `${remainingTime}s`;
-                
-                setTimeout(updateCooldown, 50);
-            } else {
-                cooldownElement.classList.remove('cooldown-active');
-                cooldownElement.innerHTML = 'Ready to place a pixel!';
-            }
-        }
-
-        // Show notification
-        function showNotification(message) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.style.display = 'block';
-            
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 3000);
-        }
-
-        // Add to history log
-        function addToHistory(x, y, color) {
-            // Add to Firebase history
-            const historyRef = ref(db, 'history');
-            push(historyRef, {
-                x: x,
-                y: y,
-                color: color,
-                userId: userId,
-                username: username,
-                timestamp: Date.now()
-            });
-        }
-
-        // Update the leaderboard display
-        function updateLeaderboard() {
-            const leaderboardContainer = document.getElementById('leaderboard-container');
-            
-            // Convert to array and sort by pixel count
-            const sortedUsers = Object.entries(userPixelCounts)
-                .map(([userId, count]) => ({ 
-                    userId, 
-                    count,
-                    username: usernames[userId] || userId.substring(0, 8)
-                }))
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 10); // Top 10 users
-            
-            // Create leaderboard HTML
-            const fragment = document.createDocumentFragment();
-            
-            // Add header
-            const header = document.createElement('div');
-            header.className = 'leaderboard-header';
-            header.innerHTML = `
-                <span>User</span>
-                <span>Pixels</span>
-            `;
-            fragment.appendChild(header);
-            
-            // Add users
-            sortedUsers.forEach((user, index) => {
-                const item = document.createElement('div');
-                item.className = 'leaderboard-item';
-                item.innerHTML = `
-                    <div style="display: flex; align-items: center;">
-                        <span class="leaderboard-position">${index + 1}</span>
-                        <span class="leaderboard-user">${user.username}</span>
-                    </div>
-                    <span class="leaderboard-count">${user.count}</span>
-                `;
-                fragment.appendChild(item);
-            });
-            
-            leaderboardContainer.innerHTML = '';
-            leaderboardContainer.appendChild(fragment);
-        }
-
-        // Generate a random user ID
-        function generateUserId() {
-            return 'user_' + Math.random().toString(36).substr(2, 9);
-        }
-
-        // Save user data to localStorage
-        function saveUserData() {
-            localStorage.setItem('astroPlacesUser', JSON.stringify({
-                userId: userId,
-                username: username
-            }));
-        }
-
-        // Load user data from localStorage
-        function loadUserData() {
-            const userData = localStorage.getItem('astroPlacesUser');
-            if (userData) {
-                try {
-                    const data = JSON.parse(userData);
-                    return data;
-                } catch (e) {
-                    return null;
-                }
-            }
-            return null;
-        }
-
-        // Clear user data from localStorage
-        function clearUserData() {
-            localStorage.removeItem('astroPlacesUser');
-        }
-
-        // Optimized user presence handling
-        function setupUserPresence() {
-            userPresenceRef = ref(db, `users/${userId}`);
-            
-            // Set user as online
-            set(userPresenceRef, {
-                online: true,
-                username: username,
-                lastActive: Date.now()
-            });
-            
-            // Update last active time periodically
-            setInterval(() => {
-                update(userPresenceRef, {
-                    lastActive: Date.now()
-                });
-            }, 30000);
-            
-            // Listen for all users
-            const usersRef = ref(db, 'users');
-            let lastUserCountUpdate = 0;
-            
-            onValue(usersRef, (snapshot) => {
-                const now = Date.now();
-                // Throttle updates to at most once per 5 seconds
-                if (now - lastUserCountUpdate < 5000) return;
-                lastUserCountUpdate = now;
-                
-                const users = snapshot.val() || {};
-                const activeUsers = Object.values(users).filter(user => 
-                    user.online && (now - user.lastActive < 60000)
-                ).length;
-                
-                document.getElementById('user-count').textContent = activeUsers;
-                
-                // Update usernames mapping
-                for (const userId in users) {
-                    if (users[userId].username) {
-                        usernames[userId] = users[userId].username;
-                    }
-                }
-            });
-        }
-
-        // Initialize user session
-        function initializeUserSession(savedUsername, savedUserId) {
-            username = savedUsername;
-            userId = savedUserId || generateUserId();
-            
-            // Update UI
-            document.getElementById('user-info').style.display = 'flex';
-            document.getElementById('username-display').textContent = username;
-            document.getElementById('user-avatar').textContent = username.charAt(0).toUpperCase();
-            document.getElementById('username-modal').style.display = 'none';
-            
-            // Save user data
-            saveUserData();
-            
-            // Initialize user presence
-            setupUserPresence();
-            
-            // Load canvas
-            const configRef = ref(db, 'config/canvasSize');
-            get(configRef).then((snapshot) => {
-                if (snapshot.exists()) {
-                    canvasSize = snapshot.val();
-                }
-                resizeCanvas();
-                drawCanvas();
-            });
-        }
-
-        // Optimized canvas interaction events with throttling
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            const x = Math.floor((e.clientX - rect.left) * scaleX);
-            const y = Math.floor((e.clientY - rect.top) * scaleY);
-            
-            placePixel(x, y);
-        });
-
-        // Throttled hover effect
-        canvas.addEventListener('mousemove', throttle((e) => {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            const x = Math.floor((e.clientX - rect.left) * scaleX);
-            const y = Math.floor((e.clientY - rect.top) * scaleY);
-            
-            // Update coordinates display
-            document.getElementById('coordinates').textContent = `(${x}, ${y})`;
-            
-            // Show hover preview
-            if (x >= 0 && x < canvasSize && y >= 0 && y < canvasSize) {
-                hoverPixel.style.display = 'block';
-                hoverPixel.style.left = (x * pixelSize * zoom) + 'px';
-                hoverPixel.style.top = (y * pixelSize * zoom) + 'px';
-                hoverPixel.style.backgroundColor = selectedColor;
-            } else {
-                hoverPixel.style.display = 'none';
-            }
-        }, 50));
-        
-        canvas.addEventListener('mouseout', () => {
-            hoverPixel.style.display = 'none';
-        });
-
-        // Zoom controls
-        document.getElementById('zoom-in').addEventListener('click', () => {
-            zoom = Math.min(zoom + 0.5, 5);
-            resizeCanvas();
-        });
-        
-        document.getElementById('zoom-out').addEventListener('click', () => {
-            zoom = Math.max(zoom - 0.5, 0.5);
-            resizeCanvas();
-        });
-        
-        document.getElementById('zoom-reset').addEventListener('click', () => {
-            zoom = 1;
-            resizeCanvas();
-        });
-
-        // Panning/dragging the canvas with debouncing
-        canvas.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
-            canvas.style.cursor = 'grabbing';
-        });
-        
-        window.addEventListener('mousemove', throttle((e) => {
-            if (!isDragging) return;
-            
-            const dx = e.clientX - lastMouseX;
-            const dy = e.clientY - lastMouseY;
-            
-            // Update offsets for panning
-            offsetX += dx;
-            offsetY += dy;
-
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
-
-            // Mark canvas for redraw
-            canvas.needsRedraw = true;
-        }, 16)); // ~60fps
-        
-        window.addEventListener('mouseup', () => {
-            isDragging = false;
-            canvas.style.cursor = 'crosshair';
-        });
-
-        // Username modal handling
-        document.getElementById('username-submit').addEventListener('click', () => {
-            const input = document.getElementById('username-input');
-            const name = input.value.trim();
-            
-            if (name.length < 3) {
-                showNotification('Username must be at least 3 characters');
-                return;
-            }
-            
-            if (name.length > 16) {
-                showNotification('Username must be 16 characters or less');
-                return;
-            }
-            
-            initializeUserSession(name);
-        });
-
-        // Logout functionality
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            // Clear user data
-            clearUserData();
-            
-            // Reset user session
-            userId = '';
-            username = '';
-            
-            // Update UI
-            document.getElementById('user-info').style.display = 'none';
-            document.getElementById('username-modal').style.display = 'flex';
-            document.getElementById('username-input').value = '';
-            document.getElementById('username-input').focus();
-            
-            // Remove from online users
-            if (userPresenceRef) {
-                remove(userPresenceRef);
-                userPresenceRef = null;
-            }
-            
-            showNotification('Logged out successfully');
-        });
-
-        // Initialize the application
-        function init() {
-            // Check for saved user data
-            const savedUser = loadUserData();
-            
-            if (savedUser && savedUser.username) {
-                initializeUserSession(savedUser.username, savedUser.userId);
-            } else {
-                // Show username modal
-                document.getElementById('username-modal').style.display = 'flex';
-                document.getElementById('username-input').focus();
-                
-                // Allow Enter key to submit
-                document.getElementById('username-input').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        document.getElementById('username-submit').click();
-                    }
-                });
-            }
-        }
-
-        // Start the app
-        init();
-    </script>
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      VIEW_W = Math.floor(window.innerWidth / CELL_SIZE);
+      VIEW_H = Math.floor(window.innerHeight / CELL_SIZE);
+    });
+  </script>
 </body>
 </html>
