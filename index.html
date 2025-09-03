@@ -4,54 +4,197 @@
   <meta charset="UTF-8" />
   <title>Astro Places</title>
   <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
     body { 
       margin: 0; 
       display: flex; 
       justify-content: center; 
       align-items: center; 
       height: 100vh; 
-      background: #111; 
-      color: white; 
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a0a2e 50%, #16213e 100%);
+      color: white;
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
     }
+    
     canvas { 
-      border: 2px solid white; 
-      image-rendering: pixelated; 
-      background: black; 
+      border: 3px solid #4a90e2;
+      border-radius: 8px;
+      image-rendering: pixelated;
+      background: #000;
+      box-shadow: 0 0 30px rgba(74, 144, 226, 0.3);
     }
+    
+    .ui {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    
     .hotbar {
       position: fixed;
       bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      border-radius: 12px;
+      border: 2px solid #4a90e2;
+      backdrop-filter: blur(10px);
+      pointer-events: all;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
-    .hotbar div {
-      width: 30px; height: 30px; border: 2px solid white; cursor: pointer;
+    
+    .color-slot {
+      width: 28px;
+      height: 28px;
+      border: 2px solid #444;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
     }
-    .hotbar .selected { border: 2px solid yellow; }
-    .coordinates {
+    
+    .color-slot:hover {
+      transform: scale(1.1);
+      border-color: #6ab7ff;
+    }
+    
+    .color-slot.selected {
+      border: 3px solid #ffd700;
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+      transform: scale(1.15);
+    }
+    
+    .color-slot::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(45deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+    }
+    
+    .info-panel {
       position: fixed;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.7);
-      color: white;
-      padding: 5px 10px;
-      border-radius: 5px;
-      font-family: monospace;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 12px;
+      border: 2px solid #4a90e2;
+      backdrop-filter: blur(10px);
+      pointer-events: all;
       font-size: 14px;
+      line-height: 1.4;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      min-width: 200px;
+    }
+    
+    .status-bar {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px 15px;
+      border-radius: 12px;
+      border: 2px solid #4a90e2;
+      backdrop-filter: blur(10px);
+      pointer-events: all;
+      font-size: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+    
+    .connection-status {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .connection-status.connected {
+      background: #4caf50;
+      box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+    }
+    
+    .connection-status.disconnected {
+      background: #f44336;
+      box-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+    }
+    
+    .controls {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #aaa;
+      border-top: 1px solid #333;
+      padding-top: 8px;
+    }
+    
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      padding: 20px;
+      border-radius: 12px;
+      border: 2px solid #4a90e2;
+      text-align: center;
+      pointer-events: all;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    
+    .pulse {
+      animation: pulse 1.5s ease-in-out infinite;
     }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div class="hotbar" id="hotbar"></div>
-  <div class="coordinates" id="coordinates">X: 100, Y: 100</div>
+  
+  <div class="ui">
+    <div class="info-panel">
+      <div><strong>📍 Position:</strong> <span id="coordinates">X: 100, Y: 100</span></div>
+      <div><strong>🎨 Color:</strong> <span id="selected-color">#ff0000</span></div>
+      <div><strong>👥 Players:</strong> <span id="player-count">1</span></div>
+      <div class="controls">
+        WASD: Move • SPACE: Paint • T: Zoom • 1-9: Colors
+      </div>
+    </div>
+    
+    <div class="status-bar">
+      <span class="connection-status connected" id="connection-status"></span>
+      <span id="status-text">Connected</span>
+    </div>
+    
+    <div class="hotbar" id="hotbar"></div>
+  </div>
+  
+  <div class="loading" id="loading">
+    <div class="pulse">🚀 Loading Astro Places...</div>
+  </div>
 
   <script type="module">
-
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, push, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAJ6-c8Pe7ixoVOSDt43vCIWHDcO2adsGY",
@@ -62,198 +205,399 @@
       messagingSenderId: "923457528346",
       appId: "1:923457528346:web:57acc74de094f19d6467a3"
     };
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+
+    // Initialize Firebase with error handling
+    let database;
+    let isConnected = false;
     
-    console.log('Firebase initialized');
+    try {
+      const app = initializeApp(firebaseConfig);
+      database = getDatabase(app);
+      isConnected = true;
+      console.log('🔥 Firebase initialized successfully');
+    } catch (error) {
+      console.error('❌ Firebase initialization failed:', error);
+      updateConnectionStatus(false);
+    }
 
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-
+    // Game constants
     const BOARD_W = 300, BOARD_H = 200;
     const CELL_SIZE = 20;
+    const BATCH_SIZE = 10; // Batch Firebase writes
+    const SAVE_DELAY = 100; // Debounce saves by 100ms
+    
+    // Game state
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
     let VIEW_W = Math.floor(window.innerWidth / CELL_SIZE);
     let VIEW_H = Math.floor(window.innerHeight / CELL_SIZE);
-
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
     let cursor = { x: 100, y: 100 };
     let board = [];
     let zoomedOut = false;
-    for (let y = 0; y < BOARD_H; y++) {
-      board[y] = Array(BOARD_W).fill("#000");
+    let lastSaveTime = 0;
+    let pendingWrites = new Map();
+    let playerId = Math.random().toString(36).substr(2, 9);
+    
+    // Enhanced color palette - 40 colors
+    const colors = [
+      // Primary colors
+      "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff",
+      // Warm colors
+      "#ff4500", "#ff6347", "#ff69b4", "#ffa500", "#ffd700", "#ffb347",
+      "#ff8c69", "#ff7f50", "#ff6b6b", "#ff5733", "#e74c3c", "#d63031",
+      // Cool colors  
+      "#00bfff", "#1e90ff", "#4169e1", "#6495ed", "#87ceeb", "#add8e6",
+      "#40e0d0", "#20b2aa", "#00ced1", "#48cae4", "#0077be", "#023047",
+      // Nature colors
+      "#228b22", "#32cd32", "#90ee90", "#98fb98", "#adff2f", "#7fff00",
+      "#6b8e23", "#556b2f", "#8fbc8f", "#2e8b57", "#3cb371", "#20b2aa",
+      // Neutrals & darks
+      "#ffffff", "#f5f5f5", "#dcdcdc", "#c0c0c0", "#808080", "#696969",
+      "#2f2f2f", "#000000"
+    ];
+    
+    let selectedColor = colors[0];
+    let selectedColorIndex = 0;
+
+    // Initialize board
+    function initBoard() {
+      for (let y = 0; y < BOARD_H; y++) {
+        board[y] = Array(BOARD_W).fill("#000000");
+      }
+    }
+    
+    // Update connection status UI
+    function updateConnectionStatus(connected) {
+      const statusEl = document.getElementById('connection-status');
+      const statusText = document.getElementById('status-text');
+      
+      if (connected) {
+        statusEl.className = 'connection-status connected';
+        statusText.textContent = 'Connected';
+      } else {
+        statusEl.className = 'connection-status disconnected'; 
+        statusText.textContent = 'Disconnected';
+      }
     }
 
-    console.log('Board initialized');
+    // Optimized Firebase save with batching and debouncing
+    function savePixel(x, y, color) {
+      if (!isConnected || !database) return;
+      
+      const now = Date.now();
+      const key = `${x},${y}`;
+      
+      // Add to pending writes
+      pendingWrites.set(key, { x, y, color, timestamp: now });
+      
+      // Debounce - only save if enough time has passed
+      if (now - lastSaveTime < SAVE_DELAY) return;
+      
+      // Process pending writes in batches
+      const writes = Array.from(pendingWrites.values()).slice(0, BATCH_SIZE);
+      pendingWrites.clear();
+      
+      writes.forEach(({ x, y, color }) => {
+        const pixelRef = ref(database, `pixels/${x}/${y}`);
+        set(pixelRef, { 
+          color, 
+          timestamp: serverTimestamp(),
+          player: playerId 
+        }).catch(error => {
+          console.error('❌ Save error:', error);
+          updateConnectionStatus(false);
+        });
+      });
+      
+      lastSaveTime = now;
+    }
 
-    // Load existing pixels from Firebase
-    console.log('Setting up Firebase listener...');
-    const pixelsRef = ref(database, 'pixels');
-    onValue(pixelsRef, (snapshot) => {
-      console.log('Firebase listener triggered!');
-      const data = snapshot.val();
-      console.log('Firebase data:', data);
-      if (data) {
-        let loadedCount = 0;
-        for (let x in data) {
-          for (let y in data[x]) {
-            if (data[x][y] && data[x][y].color) {
-              const xPos = parseInt(x);
-              const yPos = parseInt(y);
-              console.log(`Loading pixel at ${xPos},${yPos} with color ${data[x][y].color}`);
-              if (xPos >= 0 && xPos < BOARD_W && yPos >= 0 && yPos < BOARD_H) {
-                board[yPos][xPos] = data[x][y].color;
-                loadedCount++;
+    // Load pixels from Firebase with error handling
+    function loadPixels() {
+      if (!isConnected || !database) return;
+      
+      const pixelsRef = ref(database, 'pixels');
+      onValue(pixelsRef, (snapshot) => {
+        try {
+          const data = snapshot.val();
+          if (!data) return;
+          
+          let loadedCount = 0;
+          for (let x in data) {
+            for (let y in data[x]) {
+              const pixel = data[x][y];
+              if (pixel && pixel.color) {
+                const xPos = parseInt(x);
+                const yPos = parseInt(y);
+                
+                if (xPos >= 0 && xPos < BOARD_W && yPos >= 0 && yPos < BOARD_H) {
+                  board[yPos][xPos] = pixel.color;
+                  loadedCount++;
+                }
               }
             }
           }
+          
+          console.log(`✅ Loaded ${loadedCount} pixels`);
+          updateConnectionStatus(true);
+          hideLoading();
+        } catch (error) {
+          console.error('❌ Load error:', error);
+          updateConnectionStatus(false);
         }
-        console.log(`Loaded ${loadedCount} pixels from Firebase`);
-      } else {
-        console.log('No data found in Firebase');
-      }
-    }, (error) => {
-      console.error('Firebase error:', error);
-    });
-
-    // colors
-    const colors = [
-      "#e00", "#0e0", "#00e", "#ee0", "#0ee", "#e0e", "#fff", "#888", "#000",
-      "#f80", "#8f0", "#08f", "#f08", "#80f", "#0f8", "#ff8", "#8ff", "#f8f",
-      "#840", "#048"
-    ];
-    let selectedColor = colors[0];
-
-    const hotbar = document.getElementById("hotbar");
-    const coordinatesDiv = document.getElementById("coordinates");
-    
-    // cordinates
-    function updateCoordinates() {
-      coordinatesDiv.textContent = `X: ${cursor.x}, Y: ${cursor.y}`;
+      }, (error) => {
+        console.error('❌ Firebase listener error:', error);
+        updateConnectionStatus(false);
+      });
     }
-    
-    colors.forEach((c, i) => {
-      let div = document.createElement("div");
-      div.style.background = c;
-      if (i === 0) div.classList.add("selected");
-      div.onclick = () => {
-        selectedColor = c;
-        document.querySelectorAll(".hotbar div").forEach(d => d.classList.remove("selected"));
-        div.classList.add("selected");
-      };
-      hotbar.appendChild(div);
-    });
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "w") {
-        cursor.y = Math.max(0, cursor.y - 1);
-        updateCoordinates();
-      }
-      if (e.key === "s") {
-        cursor.y = Math.min(BOARD_H - 1, cursor.y + 1);
-        updateCoordinates();
-      }
-      if (e.key === "a") {
-        cursor.x = Math.max(0, cursor.x - 1);
-        updateCoordinates();
-      }
-      if (e.key === "d") {
-        cursor.x = Math.min(BOARD_W - 1, cursor.x + 1);
-        updateCoordinates();
-      }
-      if (e.key === "t" || e.key === "T") {
-        zoomedOut = !zoomedOut;
-      }
-      if (e.code === "Space") {
-        e.preventDefault(); 
-        board[cursor.y][cursor.x] = selectedColor;
-        // save
-        console.log(`Saving pixel at ${cursor.x},${cursor.y} with color ${selectedColor}`);
-        const pixelRef = ref(database, `pixels/${cursor.x}/${cursor.y}`);
-        set(pixelRef, { color: selectedColor })
-          .then(() => {
-            console.log('Pixel saved successfully to Firebase');
-          })
-          .catch((error) => {
-            console.error('Error saving pixel:', error);
-          });
-      }
-      if (e.key >= "1" && e.key <= "9") {
-        let idx = parseInt(e.key) - 1;
-        if (colors[idx]) {
-          selectedColor = colors[idx];
-          document.querySelectorAll(".hotbar div").forEach(d => d.classList.remove("selected"));
-          hotbar.children[idx].classList.add("selected");
-        }
-      }
-    });
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Player presence system
+    function setupPresence() {
+      if (!isConnected || !database) return;
       
-      if (zoomedOut) {
-        // zoomed out view - show entire board
-        const scale = Math.min(canvas.width / BOARD_W, canvas.height / BOARD_H);
-        const offsetX = (canvas.width - BOARD_W * scale) / 2;
-        const offsetY = (canvas.height - BOARD_H * scale) / 2;
-        
-        for (let y = 0; y < BOARD_H; y++) {
-          for (let x = 0; x < BOARD_W; x++) {
-            ctx.fillStyle = board[y][x];
-            ctx.fillRect(offsetX + x * scale, offsetY + y * scale, scale, scale);
-          }
-        }
-        
-        // draw cursor
-        ctx.strokeStyle = "yellow";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(
-          offsetX + cursor.x * scale, 
-          offsetY + cursor.y * scale, 
-          scale, scale
-        );
-      } else {
-        // normal view
-        let offsetX = cursor.x - Math.floor(VIEW_W / 2);
-        let offsetY = cursor.y - Math.floor(VIEW_H / 2);
-        if (offsetX < 0) offsetX = 0;
-        if (offsetY < 0) offsetY = 0;
-        if (offsetX + VIEW_W > BOARD_W) offsetX = BOARD_W - VIEW_W;
-        if (offsetY + VIEW_H > BOARD_H) offsetY = BOARD_H - VIEW_H;
+      const playerRef = ref(database, `players/${playerId}`);
+      const playersRef = ref(database, 'players');
+      
+      // Set player as online
+      set(playerRef, {
+        online: true,
+        lastSeen: serverTimestamp(),
+        x: cursor.x,
+        y: cursor.y
+      });
+      
+      // Remove player when disconnected
+      onDisconnect(playerRef).remove();
+      
+      // Listen for player count
+      onValue(playersRef, (snapshot) => {
+        const players = snapshot.val();
+        const count = players ? Object.keys(players).length : 1;
+        document.getElementById('player-count').textContent = count;
+      });
+    }
 
-        for (let y = 0; y < VIEW_H; y++) {
-          for (let x = 0; x < VIEW_W; x++) {
-            let bx = x + offsetX, by = y + offsetY;
-            ctx.fillStyle = board[by][bx];
-            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-          }
-        }
-
-        // draw cursor
-        ctx.strokeStyle = "yellow";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(
-          (cursor.x - offsetX) * CELL_SIZE, 
-          (cursor.y - offsetY) * CELL_SIZE, 
-          CELL_SIZE, CELL_SIZE
-        );
+    // UI Updates
+    function updateCoordinates() {
+      document.getElementById('coordinates').textContent = `X: ${cursor.x}, Y: ${cursor.y}`;
+    }
+    
+    function updateSelectedColor() {
+      document.getElementById('selected-color').textContent = selectedColor;
+    }
+    
+    function hideLoading() {
+      const loading = document.getElementById('loading');
+      if (loading) {
+        loading.style.display = 'none';
       }
     }
 
-    function loop() {
-      draw();
-      requestAnimationFrame(loop);
+    // Create color hotbar
+    function createHotbar() {
+      const hotbar = document.getElementById("hotbar");
+      
+      colors.forEach((color, i) => {
+        const div = document.createElement("div");
+        div.className = "color-slot";
+        div.style.background = color;
+        if (i === 0) div.classList.add("selected");
+        
+        div.onclick = () => selectColor(i);
+        hotbar.appendChild(div);
+      });
     }
-    loop();
+    
+    function selectColor(index) {
+      selectedColorIndex = index;
+      selectedColor = colors[index];
+      updateSelectedColor();
+      
+      // Update UI
+      document.querySelectorAll(".color-slot").forEach((slot, i) => {
+        slot.classList.toggle("selected", i === index);
+      });
+    }
 
-    window.addEventListener("resize", () => {
+    // Optimized rendering with dirty regions
+    let lastCursor = { x: cursor.x, y: cursor.y };
+    let needsFullRedraw = true;
+    
+    function draw() {
+      const cursorMoved = cursor.x !== lastCursor.x || cursor.y !== lastCursor.y;
+      
+      if (needsFullRedraw || cursorMoved) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        if (zoomedOut) {
+          drawZoomedOut();
+        } else {
+          drawNormal();
+        }
+        
+        lastCursor = { x: cursor.x, y: cursor.y };
+        needsFullRedraw = false;
+      }
+    }
+    
+    function drawZoomedOut() {
+      const scale = Math.min(canvas.width / BOARD_W, canvas.height / BOARD_H);
+      const offsetX = (canvas.width - BOARD_W * scale) / 2;
+      const offsetY = (canvas.height - BOARD_H * scale) / 2;
+      
+      // Draw pixels
+      for (let y = 0; y < BOARD_H; y++) {
+        for (let x = 0; x < BOARD_W; x++) {
+          ctx.fillStyle = board[y][x];
+          ctx.fillRect(offsetX + x * scale, offsetY + y * scale, scale, scale);
+        }
+      }
+      
+      // Draw cursor with glow effect
+      ctx.strokeStyle = "#ffd700";
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = "#ffd700";
+      ctx.strokeRect(offsetX + cursor.x * scale, offsetY + cursor.y * scale, scale, scale);
+      ctx.shadowBlur = 0;
+    }
+    
+    function drawNormal() {
+      let offsetX = cursor.x - Math.floor(VIEW_W / 2);
+      let offsetY = cursor.y - Math.floor(VIEW_H / 2);
+      
+      // Clamp offsets
+      offsetX = Math.max(0, Math.min(BOARD_W - VIEW_W, offsetX));
+      offsetY = Math.max(0, Math.min(BOARD_H - VIEW_H, offsetY));
+
+      // Draw pixels
+      for (let y = 0; y < VIEW_H && y + offsetY < BOARD_H; y++) {
+        for (let x = 0; x < VIEW_W && x + offsetX < BOARD_W; x++) {
+          ctx.fillStyle = board[y + offsetY][x + offsetX];
+          ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+      }
+
+      // Draw cursor with glow
+      ctx.strokeStyle = "#ffd700";
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = "#ffd700";
+      ctx.strokeRect(
+        (cursor.x - offsetX) * CELL_SIZE, 
+        (cursor.y - offsetY) * CELL_SIZE, 
+        CELL_SIZE, CELL_SIZE
+      );
+      ctx.shadowBlur = 0;
+    }
+
+    // Input handling
+    let keys = new Set();
+    
+    document.addEventListener("keydown", (e) => {
+      if (keys.has(e.code)) return;
+      keys.add(e.code);
+      
+      const oldX = cursor.x, oldY = cursor.y;
+      
+      switch(e.key.toLowerCase()) {
+        case "w": cursor.y = Math.max(0, cursor.y - 1); break;
+        case "s": cursor.y = Math.min(BOARD_H - 1, cursor.y + 1); break; 
+        case "a": cursor.x = Math.max(0, cursor.x - 1); break;
+        case "d": cursor.x = Math.min(BOARD_W - 1, cursor.x + 1); break;
+        case "t": zoomedOut = !zoomedOut; needsFullRedraw = true; break;
+          case "u":
+  e.preventDefault();
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      const x = cursor.x + dx;
+      const y = cursor.y + dy;
+
+      // make sure we're inside board bounds
+      if (y >= 0 && y < board.length && x >= 0 && x < board[0].length) {
+        board[y][x] = selectedColor;
+        savePixel(x, y, selectedColor);
+      }
+    }
+  }
+  needsFullRedraw = true;
+  break;
+
+        case " ": 
+          e.preventDefault();
+          board[cursor.y][cursor.x] = selectedColor;
+          savePixel(cursor.x, cursor.y, selectedColor);
+          needsFullRedraw = true;
+          break;
+      }
+      
+      // Handle number keys for color selection
+      if (e.key >= "1" && e.key <= "9") {
+        const idx = parseInt(e.key) - 1;
+        if (colors[idx]) selectColor(idx);
+      }
+      
+      if (cursor.x !== oldX || cursor.y !== oldY) {
+        updateCoordinates();
+      }
+    });
+    
+    document.addEventListener("keyup", (e) => {
+      keys.delete(e.code);
+    });
+
+    // Resize handling
+    function handleResize() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       VIEW_W = Math.floor(window.innerWidth / CELL_SIZE);
       VIEW_H = Math.floor(window.innerHeight / CELL_SIZE);
+      needsFullRedraw = true;
+    }
+    
+    window.addEventListener("resize", handleResize);
+
+    // Game loop with optimized FPS
+    let lastFrameTime = 0;
+    const TARGET_FPS = 60;
+    const FRAME_TIME = 1000 / TARGET_FPS;
+    
+    function gameLoop(timestamp) {
+      if (timestamp - lastFrameTime >= FRAME_TIME) {
+        draw();
+        lastFrameTime = timestamp;
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Initialize game
+    async function init() {
+      console.log('🚀 Initializing Astro Places...');
+      
+      initBoard();
+      handleResize();
+      createHotbar();
+      updateCoordinates();
+      updateSelectedColor();
+      
+      if (isConnected) {
+        loadPixels();
+        setupPresence();
+      } else {
+        hideLoading();
+      }
+      
+      gameLoop(0);
+      
+      console.log('✅ Game initialized!');
+    }
+    
+    // Start the game
+    init().catch(error => {
+      console.error('❌ Initialization failed:', error);
+      hideLoading();
     });
+
   </script>
 </body>
 </html>
