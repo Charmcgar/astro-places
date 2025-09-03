@@ -313,16 +313,21 @@
       lastSaveTime = now;
     }
 
+// Draw rectangle function
 function drawRectangle(startX, startY, width, height, color) {
+  const pixels = []; // collect all pixels that belong to this rectangle
+
   for (let y = startY; y < startY + height && y < BOARD_H; y++) {
     for (let x = startX; x < startX + width && x < BOARD_W; x++) {
       if (x >= 0 && y >= 0) {
         board[y][x] = color;
+        pixels.push({ x, y, color });
       }
     }
   }
-  // Save once for all pixels after finished drawing
-  saveShape(startX, startY, width, height, color);
+
+  // Save once for the whole rectangle
+  saveRectangle(pixels);
 }
 
     // Load pixels from Firebase with error handling
