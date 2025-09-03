@@ -513,20 +513,7 @@ var X = "u"
       
       const oldX = cursor.x, oldY = cursor.y;
 
-              case "ArrowUp": 
-          cursor.y = Math.max(0, cursor.y - 5); 
-          break;
-        case "ArrowDown": 
-          cursor.y = Math.min(BOARD_H - 1, cursor.y + 5); 
-          break; 
-        case "ArrowLeft": 
-          cursor.x = Math.max(0, cursor.x - 5); 
-          break;
-        case "ArrowRight": 
-          cursor.x = Math.min(BOARD_W - 1, cursor.x + 5); 
-          break;
 
-      
       switch(e.key.toLowerCase()) {
         case "w": cursor.y = Math.max(0, cursor.y - 1); break;
         case "s": cursor.y = Math.min(BOARD_H - 1, cursor.y + 1); break; 
@@ -544,6 +531,21 @@ var X = "u"
           savePixel(cursor.x, cursor.y, selectedColor);
           needsFullRedraw = true;
           break;
+
+                        case "ArrowUp": 
+          cursor.y = Math.max(0, cursor.y - 5); 
+          break;
+        case "ArrowDown": 
+          cursor.y = Math.min(BOARD_H - 1, cursor.y + 5); 
+          break; 
+        case "ArrowLeft": 
+          cursor.x = Math.max(0, cursor.x - 5); 
+          break;
+        case "ArrowRight": 
+          cursor.x = Math.min(BOARD_W - 1, cursor.x + 5); 
+          break;
+
+      
       }
       
       // Handle number keys for color selection
