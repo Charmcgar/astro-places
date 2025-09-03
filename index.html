@@ -439,6 +439,7 @@
         needsFullRedraw = false;
       }
     }
+    var x = "u"
     
     function drawZoomedOut() {
       const scale = Math.min(canvas.width / BOARD_W, canvas.height / BOARD_H);
@@ -506,14 +507,12 @@
         case "a": cursor.x = Math.max(0, cursor.x - 1); break;
         case "d": cursor.x = Math.min(BOARD_W - 1, cursor.x + 1); break;
         case "t": zoomedOut = !zoomedOut; needsFullRedraw = true; break;
-          case "u":
+  case x:
   e.preventDefault();
   for (let dy = -2; dy <= 2; dy++) {
     for (let dx = -2; dx <= 2; dx++) {
       const x = cursor.x + dx;
       const y = cursor.y + dy;
-
-      // make sure we're inside board bounds
       if (y >= 0 && y < board.length && x >= 0 && x < board[0].length) {
         board[y][x] = selectedColor;
         savePixel(x, y, selectedColor);
@@ -522,6 +521,7 @@
   }
   needsFullRedraw = true;
   break;
+
 
         case " ": 
           e.preventDefault();
