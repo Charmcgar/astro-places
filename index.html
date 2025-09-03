@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>Astro Places</title>
+  <title>Astro Places - Optimized</title>
   <style>
     * {
       box-sizing: border-box;
@@ -176,7 +176,7 @@
       <div><strong>🎨 Color:</strong> <span id="selected-color">#ff0000</span></div>
       <div><strong>👥 Players:</strong> <span id="player-count">1</span></div>
       <div class="controls">
-        WASD: Move • SPACE: Paint • T: Zoom • 1-9: Colors
+        WASD: Move • SPACE: Paint • U: Rect (5x8) • T: Zoom • 1-9: Colors
       </div>
     </div>
     
@@ -225,6 +225,7 @@
     const CELL_SIZE = 20;
     const BATCH_SIZE = 10; // Batch Firebase writes
     const SAVE_DELAY = 100; // Debounce saves by 100ms
+    const RECT_W = 10, RECT_H = 5; // Rectangle dimensions
     
     // Game state
     const canvas = document.getElementById("game");
@@ -310,6 +311,18 @@
       });
       
       lastSaveTime = now;
+    }
+
+    // Draw rectangle function
+    function drawRectangle(startX, startY, width, height, color) {
+      for (let y = startY; y < startY + height && y < BOARD_H; y++) {
+        for (let x = startX; x < startX + width && x < BOARD_W; x++) {
+          if (x >= 0 && y >= 0) {
+            board[y][x] = color;
+            savePixel(x, y, color);
+          }
+        }
+      }
     }
 
     // Load pixels from Firebase with error handling
@@ -439,7 +452,6 @@
         needsFullRedraw = false;
       }
     }
-    var x = "u"
     
     function drawZoomedOut() {
       const scale = Math.min(canvas.width / BOARD_W, canvas.height / BOARD_H);
@@ -478,7 +490,7 @@
           ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
       }
-
+var X = "u"
       // Draw cursor with glow
       ctx.strokeStyle = "#ffd700";
       ctx.lineWidth = 3;
@@ -507,22 +519,11 @@
         case "a": cursor.x = Math.max(0, cursor.x - 1); break;
         case "d": cursor.x = Math.min(BOARD_W - 1, cursor.x + 1); break;
         case "t": zoomedOut = !zoomedOut; needsFullRedraw = true; break;
-  case x:
-  e.preventDefault();
-  for (let dy = -2; dy <= 2; dy++) {
-    for (let dx = -2; dx <= 2; dx++) {
-      const x = cursor.x + dx;
-      const y = cursor.y + dy;
-      if (y >= 0 && y < board.length && x >= 0 && x < board[0].length) {
-        board[y][x] = selectedColor;
-        savePixel(x, y, selectedColor);
-      }
-    }
-  }
-  needsFullRedraw = true;
-  break;
-
-
+        case X:
+          e.preventDefault();
+          drawRectangle(cursor.x, cursor.y, RECT_W, RECT_H, selectedColor);
+          needsFullRedraw = true;
+          break;
         case " ": 
           e.preventDefault();
           board[cursor.y][cursor.x] = selectedColor;
