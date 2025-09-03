@@ -513,39 +513,39 @@
       const oldX = cursor.x, oldY = cursor.y;
 
 
-      switch(e.key.toLowerCase()) {
-        case "w": cursor.y = Math.max(0, cursor.y - 1); break;
-        case "s": cursor.y = Math.min(BOARD_H - 1, cursor.y + 1); break; 
-        case "a": cursor.x = Math.max(0, cursor.x - 1); break;
-        case "d": cursor.x = Math.min(BOARD_W - 1, cursor.x + 1); break;
-        case "t": zoomedOut = !zoomedOut; needsFullRedraw = true; break;
-        case "u":
-          e.preventDefault();
-          drawRectangle(cursor.x, cursor.y, RECT_W, RECT_H, selectedColor);
-          needsFullRedraw = true;
-          break;
-        case " ": 
-          e.preventDefault();
-          board[cursor.y][cursor.x] = selectedColor;
-          savePixel(cursor.x, cursor.y, selectedColor);
-          needsFullRedraw = true;
-          break;
+      switch (e.key) {
+  case "w":
+  case "W": cursor.y = Math.max(0, cursor.y - 1); break;
+  case "s":
+  case "S": cursor.y = Math.min(BOARD_H - 1, cursor.y + 1); break;
+  case "a":
+  case "A": cursor.x = Math.max(0, cursor.x - 1); break;
+  case "d":
+  case "D": cursor.x = Math.min(BOARD_W - 1, cursor.x + 1); break;
 
-          case "ArrowUp": 
-          cursor.y = Math.max(0, cursor.y - 5); 
-          break;
-        case "ArrowDown": 
-          cursor.y = Math.min(BOARD_H - 1, cursor.y + 5); 
-          break; 
-        case "ArrowLeft": 
-          cursor.x = Math.max(0, cursor.x - 5); 
-          break;
-        case "ArrowRight": 
-          cursor.x = Math.min(BOARD_W - 1, cursor.x + 5); 
-          break;
+  case "t":
+  case "T": zoomedOut = !zoomedOut; needsFullRedraw = true; break;
 
-      
-      }
+  case "u":
+  case "U":
+    e.preventDefault();
+    drawRectangle(cursor.x, cursor.y, RECT_W, RECT_H, selectedColor);
+    needsFullRedraw = true;
+    break;
+
+  case " ":
+    e.preventDefault();
+    board[cursor.y][cursor.x] = selectedColor;
+    savePixel(cursor.x, cursor.y, selectedColor);
+    needsFullRedraw = true;
+    break;
+
+  case "ArrowUp": cursor.y = Math.max(0, cursor.y - 5); break;
+  case "ArrowDown": cursor.y = Math.min(BOARD_H - 1, cursor.y + 5); break;
+  case "ArrowLeft": cursor.x = Math.max(0, cursor.x - 5); break;
+  case "ArrowRight": cursor.x = Math.min(BOARD_W - 1, cursor.x + 5); break;
+}
+
       
       // Handle number keys for color selection
       if (e.key >= "1" && e.key <= "9") {
