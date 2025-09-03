@@ -490,7 +490,6 @@
           ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
         }
       }
-var X = "u";
       // Draw cursor with glow
       ctx.strokeStyle = "#ffd700";
       ctx.lineWidth = 3;
@@ -520,7 +519,7 @@ var X = "u";
         case "a": cursor.x = Math.max(0, cursor.x - 1); break;
         case "d": cursor.x = Math.min(BOARD_W - 1, cursor.x + 1); break;
         case "t": zoomedOut = !zoomedOut; needsFullRedraw = true; break;
-        case x:
+        case "u":
           e.preventDefault();
           drawRectangle(cursor.x, cursor.y, RECT_W, RECT_H, selectedColor);
           needsFullRedraw = true;
